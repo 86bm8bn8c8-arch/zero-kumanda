@@ -1,0 +1,1147 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Zero Kumanda</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#16130f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: phone-first single column, sticky status bar on top, tab bar at the bottom,
+   the orange Flipper LCD as the one loud element. */
+:root {
+  --bg: #f4f3f1;
+  --surface: #ffffff;
+  --sunken: #ebe8e4;
+  --fg: #1b1815;
+  --muted: #6c655d;
+  --line: #ddd8d1;
+  --accent: #ff8200;        /* Flipper LCD orange: fills only */
+  --accent-ink: #a85500;    /* orange that reads as text on light */
+  --on-accent: #120d07;
+  --danger: #c62f22;
+  --ok: #2f8a3e;
+  --font-display: "Chakra Petch", "Avenir Next Condensed", "Arial Narrow", sans-serif;
+  --font-body: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r: 12px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #16130f; --surface: #201c17; --sunken: #2a251f; --fg: #f2ede6; --muted: #a39a8f;
+    --line: #37312a; --accent: #ff8200; --accent-ink: #ffa040; --on-accent: #120d07;
+    --danger: #ff6b5c; --ok: #5cc46c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #16130f; --surface: #201c17; --sunken: #2a251f; --fg: #f2ede6; --muted: #a39a8f;
+  --line: #37312a; --accent: #ff8200; --accent-ink: #ffa040; --on-accent: #120d07;
+  --danger: #ff6b5c; --ok: #5cc46c; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.45 var(--font-body);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--bg);
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+.wrap {
+  max-width: 560px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* Top bar */
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 10px; }
+.brand { font: 700 19px/1 var(--font-display); letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
+.brand i { width: 14px; height: 14px; background: var(--accent); border-radius: 3px; display: inline-block; }
+.pill {
+  font: 500 12px/1 var(--font-mono); padding: 6px 10px; border-radius: 99px;
+  background: var(--sunken); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;
+}
+.pill.on { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.pill.busy { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent-ink); }
+
+main { padding-block: 18px calc(96px + env(safe-area-inset-bottom, 0px)); }
+.view { display: grid; gap: 18px; }
+
+h1, h2 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: 28px; line-height: 1.1; }
+h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.mono { font-family: var(--font-mono); }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: 1px solid var(--line); background: var(--surface); border-radius: 10px;
+  padding: 10px 14px; font-weight: 500; min-height: 44px;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn.danger { color: var(--danger); }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row > .btn { flex: 1 1 0; }
+
+/* Lists */
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.item {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 14px; min-height: 52px; border: 0; background: none; text-align: left;
+  border-top: 1px solid var(--line);
+}
+.item:first-child { border-top: 0; }
+.item:active { background: var(--sunken); }
+.item .ic {
+  width: 30px; height: 30px; border-radius: 8px; flex: none; display: grid; place-items: center;
+  background: var(--sunken); color: var(--accent-ink); font: 600 11px/1 var(--font-mono);
+}
+.item .txt { flex: 1; min-width: 0; }
+.item .name { overflow-wrap: anywhere; }
+.item .sub { font: 12px/1.3 var(--font-mono); color: var(--muted); }
+.item .go { color: var(--accent-ink); font-weight: 600; font-size: 13px; }
+.empty { padding: 18px 14px; color: var(--muted); }
+
+.group { display: grid; gap: 8px; }
+.input {
+  width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 10px;
+  padding: 10px 12px; min-height: 44px;
+}
+.input.mono { font-family: var(--font-mono); font-size: 14px; }
+
+/* Connect */
+.hero { display: grid; gap: 14px; padding-block: 8px; }
+.steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+.steps li::before {
+  counter-increment: s; content: counter(s);
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--sunken); font: 600 13px/1 var(--font-mono); color: var(--accent-ink);
+}
+.note {
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line));
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  border-radius: var(--r); padding: 14px; display: grid; gap: 8px;
+}
+.note.info { border-color: var(--line); background: var(--surface); }
+.copyline { display: flex; gap: 8px; }
+.copyline .input { flex: 1; min-width: 0; }
+
+/* Built-in grid */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.tile {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 10px;
+  padding: 12px 10px; text-align: left; display: grid; gap: 4px; min-height: 64px;
+}
+.tile b { font: 600 14px/1.2 var(--font-display); }
+.tile span { font: 11px/1.2 var(--font-mono); color: var(--muted); }
+
+/* Breadcrumb */
+.crumbs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font: 13px var(--font-mono); }
+.crumbs button { border: 0; background: var(--sunken); border-radius: 6px; padding: 5px 8px; }
+.crumbs button[aria-current] { background: var(--accent); color: var(--on-accent); }
+
+/* Remote */
+.lcd-frame {
+  background: #0d0b09; border-radius: 18px; padding: 12px;
+  box-shadow: inset 0 0 0 2px #2e2822;
+}
+.lcd {
+  display: block; width: 100%; max-width: 100%; aspect-ratio: 2 / 1; image-rendering: pixelated;
+  border-radius: 6px; background: var(--accent);
+}
+.lcd.vertical { aspect-ratio: 1 / 2; max-height: 60vh; width: auto; margin: 0 auto; }
+.pad { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px; padding-block: 6px; }
+.dpad { display: grid; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(3, 64px); gap: 6px; justify-content: center; }
+.key {
+  border: 0; border-radius: 50%; background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line), 0 3px 0 var(--line);
+  display: grid; place-items: center; touch-action: none; user-select: none; -webkit-user-select: none;
+  transition: transform .05s, background .1s;
+}
+.key svg { width: 26px; height: 26px; stroke: var(--fg); fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.key.ok { background: var(--accent); box-shadow: 0 3px 0 color-mix(in srgb, var(--accent) 60%, #000); }
+.key.ok svg { stroke: var(--on-accent); }
+.key.down { transform: translateY(3px); box-shadow: 0 0 0 1px var(--line); }
+.key.long { background: color-mix(in srgb, var(--accent) 45%, var(--surface)); }
+.key.back { width: 64px; height: 64px; }
+.k-up { grid-area: 1 / 2; } .k-left { grid-area: 2 / 1; } .k-ok { grid-area: 2 / 2; }
+.k-right { grid-area: 2 / 3; } .k-down { grid-area: 3 / 2; }
+
+/* Device */
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 0; }
+.kv > div { padding: 11px 14px; border-top: 1px solid var(--line); min-width: 0; }
+.kv > div:nth-child(-n+2) { border-top: 0; }
+.kv .k { color: var(--muted); }
+.kv .v { text-align: right; font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
+.meter { height: 8px; border-radius: 99px; background: var(--sunken); overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--accent); }
+.store { padding: 12px 14px; display: grid; gap: 8px; border-top: 1px solid var(--line); }
+.store:first-child { border-top: 0; }
+.store .top { display: flex; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+details summary { cursor: pointer; padding: 12px 14px; }
+details .raw { padding: 0 14px 12px; display: grid; gap: 8px; font: 12px/1.35 var(--font-mono); }
+details .raw div { overflow-wrap: anywhere; }
+details .raw span { color: var(--muted); display: block; }
+
+/* Tab bar */
+.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+}
+.tabs .wrap { display: grid; grid-template-columns: repeat(4, 1fr); padding-block: 4px; }
+.tab {
+  border: 0; background: none; display: grid; justify-items: center; gap: 3px;
+  padding: 8px 0; font-size: 11px; color: var(--muted); min-height: 52px;
+}
+.tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tab[aria-selected="true"] { color: var(--accent-ink); font-weight: 600; }
+
+/* Sheet */
+.scrim { position: fixed; inset: 0; z-index: 20; background: rgb(0 0 0 / .45); display: grid; align-items: end; }
+.sheet {
+  background: var(--surface); border-radius: 18px 18px 0 0; max-height: 85vh; overflow: auto;
+  padding: 18px max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: grid; gap: 14px; width: 100%; max-width: 560px; margin: 0 auto;
+  animation: up .18s ease-out;
+}
+.sheet h3 { margin: 0; font: 700 18px/1.2 var(--font-display); overflow-wrap: anywhere; }
+.sheet .acts { display: grid; gap: 8px; }
+.progress { height: 10px; border-radius: 99px; background: var(--sunken); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+@keyframes up { from { transform: translateY(24px); } to { transform: none; } }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px;
+  font-size: 14px; max-width: calc(100% - 32px); text-align: center;
+}
+.toast.err { background: var(--danger); color: #fff; }
+.spin { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: r .8s linear infinite; display: inline-block; }
+@keyframes r { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><i aria-hidden="true"></i>Zero Kumanda</div>
+    <div id="status" class="pill" role="status">Bağlı değil</div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- CONNECT -->
+  <section id="view-connect" class="view">
+    <div class="hero">
+      <h1>Flipper Zero'nu iPhone'dan yönet</h1>
+      <p class="muted">Modları yükle ve başlat, SD karttaki dosyaları yönet, Flipper ekranını telefonda görüp kumanda et. Modlar Flipper'ın üzerinde çalışır, bu sayfa onlara Bluetooth ile ulaşır.</p>
+    </div>
+
+    <div id="no-bt" class="note" hidden>
+      <b>Bu tarayıcı Bluetooth'a erişemiyor</b>
+      <p class="small">iPhone'da Safari ve Chrome Web Bluetooth desteklemez. App Store'dan ücretsiz <b>Bluefy – Web BLE Browser</b> uygulamasını indirip bu adresi orada açın:</p>
+      <div class="copyline">
+        <input id="page-url" class="input mono" readonly aria-label="Sayfa adresi">
+        <button id="copy-url" class="btn">Kopyala</button>
+      </div>
+      <a class="small" href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055" target="_blank" rel="noopener">Bluefy'ı App Store'da aç</a>
+    </div>
+
+    <button id="connect" class="btn primary block">Flipper'a bağlan</button>
+
+    <div class="note info">
+      <h2>İlk bağlantı</h2>
+      <ol class="steps">
+        <li><span>Flipper'da <b>Settings → Bluetooth → ON</b>.</span></li>
+        <li><span>Resmi Flipper uygulaması açıksa kapatın. Flipper aynı anda tek telefona bağlanır.</span></li>
+        <li><span><b>Flipper'a bağlan</b>'a dokunun, listeden cihazınızı seçin.</span></li>
+        <li><span>Flipper ekranında çıkan 6 haneli PIN'i iPhone'daki eşleştirme penceresine girin.</span></li>
+      </ol>
+    </div>
+    <p id="connect-error" class="small" style="color: var(--danger)" hidden></p>
+  </section>
+
+  <!-- APPS -->
+  <section id="view-apps" class="view" hidden>
+    <div class="group">
+      <h2>Dahili uygulamalar</h2>
+      <div id="builtins" class="grid"></div>
+    </div>
+    <div class="row">
+      <input id="app-search" class="input" type="search" placeholder="Mod ara" aria-label="Mod ara" style="flex: 2 1 160px">
+      <button id="app-upload" class="btn primary" style="flex: 1 1 120px">+ Mod yükle</button>
+    </div>
+    <div id="app-cats" class="view"></div>
+  </section>
+
+  <!-- FILES -->
+  <section id="view-files" class="view" hidden>
+    <nav id="crumbs" class="crumbs" aria-label="Konum"></nav>
+    <div class="row">
+      <button id="file-upload" class="btn">Buraya yükle</button>
+      <button id="file-mkdir" class="btn">Yeni klasör</button>
+      <button id="file-refresh" class="btn" aria-label="Yenile">Yenile</button>
+    </div>
+    <div id="file-list" class="list"></div>
+  </section>
+
+  <!-- REMOTE -->
+  <section id="view-remote" class="view" hidden>
+    <div class="lcd-frame"><canvas id="lcd" class="lcd" width="128" height="64" aria-label="Flipper ekranı"></canvas></div>
+    <div class="pad">
+      <div class="dpad">
+        <button class="key k-up" data-key="0" aria-label="Yukarı"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+        <button class="key k-left" data-key="3" aria-label="Sol"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="key ok k-ok" data-key="4" aria-label="OK"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/></svg></button>
+        <button class="key k-right" data-key="2" aria-label="Sağ"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="key k-down" data-key="1" aria-label="Aşağı"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      </div>
+      <button class="key back" data-key="5" aria-label="Geri"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></button>
+    </div>
+    <p class="small muted" style="text-align: center">Dokun: kısa basış · Basılı tut: uzun basış</p>
+  </section>
+
+  <!-- DEVICE -->
+  <section id="view-device" class="view" hidden>
+    <div class="group">
+      <h2>Cihaz</h2>
+      <div id="dev-info" class="list kv"></div>
+    </div>
+    <div class="group">
+      <h2>Depolama</h2>
+      <div id="dev-storage" class="list"></div>
+    </div>
+    <details id="dev-raw-wrap" class="list">
+      <summary>Tüm bilgiler</summary>
+      <div id="dev-raw" class="raw"></div>
+    </details>
+    <div class="acts row">
+      <button id="dev-ping" class="btn">Bağlantıyı test et</button>
+      <button id="dev-reboot" class="btn">Yeniden başlat</button>
+    </div>
+    <button id="dev-disconnect" class="btn danger block">Bağlantıyı kes</button>
+  </section>
+</main>
+
+<nav id="tabs" class="tabs" hidden>
+  <div class="wrap" role="tablist">
+    <button class="tab" role="tab" data-tab="apps" aria-selected="true">
+      <svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>Uygulamalar</button>
+    <button class="tab" role="tab" data-tab="files" aria-selected="false">
+      <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Dosyalar</button>
+    <button class="tab" role="tab" data-tab="remote" aria-selected="false">
+      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="M8 10v4M6 12h4"/><circle cx="16" cy="11" r="1"/><circle cx="17.5" cy="13.5" r="1"/></svg>Kumanda</button>
+    <button class="tab" role="tab" data-tab="device" aria-selected="false">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>Cihaz</button>
+  </div>
+</nav>
+
+<input id="pick-app" type="file" hidden>
+<input id="pick-file" type="file" hidden>
+<div id="toast" class="toast" hidden role="alert"></div>
+
+<script>
+// PROTO-START
+// Flipper Zero RPC (flipperzero-protobuf) over a tiny hand-written protobuf codec.
+const Proto = (() => {
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+
+  class Writer {
+    constructor() { this.b = []; }
+    varint(v) {
+      v = Number(v);
+      while (v >= 0x80) { this.b.push((v % 128) | 0x80); v = Math.floor(v / 128); }
+      this.b.push(v);
+    }
+    tag(f, t) { this.varint(f * 8 + t); }
+    uint(f, v) { if (!v) return; this.tag(f, 0); this.varint(v); }
+    bool(f, v) { this.uint(f, v ? 1 : 0); }
+    bytes(f, d, force) {
+      if (!force && !d.length) return;
+      this.tag(f, 2); this.varint(d.length);
+      for (let i = 0; i < d.length; i++) this.b.push(d[i]);
+    }
+    string(f, s) { if (s) this.bytes(f, enc.encode(s)); }
+    msg(f, build) { const w = new Writer(); if (build) build(w); this.bytes(f, w.b, true); }
+    out() { return Uint8Array.from(this.b); }
+  }
+
+  /** Returns [value, nextPos] or null when the buffer ends mid-varint. */
+  function readVarint(buf, pos) {
+    let v = 0, mul = 1;
+    for (let n = 0; pos < buf.length; n++) {
+      if (n >= 10) throw new Error('bozuk varint');
+      const b = buf[pos++];
+      v += (b & 0x7f) * mul;
+      if (!(b & 0x80)) return [v, pos];
+      mul *= 128;
+    }
+    return null;
+  }
+
+  function parse(buf) {
+    const fields = [];
+    let p = 0;
+    while (p < buf.length) {
+      const k = readVarint(buf, p); if (!k) throw new Error('eksik veri');
+      p = k[1];
+      const n = Math.floor(k[0] / 8), t = k[0] % 8;
+      if (t === 0) {
+        const v = readVarint(buf, p); if (!v) throw new Error('eksik veri');
+        fields.push({ n, v: v[0] }); p = v[1];
+      } else if (t === 2) {
+        const l = readVarint(buf, p); if (!l) throw new Error('eksik veri');
+        p = l[1];
+        if (p + l[0] > buf.length) throw new Error('eksik veri');
+        fields.push({ n, v: buf.subarray(p, p + l[0]) }); p += l[0];
+      } else if (t === 5) { p += 4; } else if (t === 1) { p += 8; }
+      else throw new Error('bilinmeyen tür');
+    }
+    return {
+      fields,
+      uint(n) { for (let i = fields.length - 1; i >= 0; i--) if (fields[i].n === n && typeof fields[i].v === 'number') return fields[i].v; return 0; },
+      bytes(n) { for (let i = fields.length - 1; i >= 0; i--) if (fields[i].n === n && typeof fields[i].v !== 'number') return fields[i].v; return new Uint8Array(0); },
+      str(n) { return dec.decode(this.bytes(n)); },
+      all(n) { return fields.filter(f => f.n === n && typeof f.v !== 'number').map(f => f.v); },
+    };
+  }
+
+  const KEY = { up: 0, down: 1, right: 2, left: 3, ok: 4, back: 5 };
+  const INPUT = { press: 0, release: 1, short: 2, long: 3, repeat: 4 };
+
+  /** Encodes one PB.Main with varint length prefix. */
+  function encode(req, id, hasNext) {
+    const w = new Writer();
+    w.uint(1, id);
+    w.bool(3, hasNext);
+    switch (req.t) {
+      case 'ping': w.msg(5, m => m.bytes(1, req.data || new Uint8Array(0))); break;
+      case 'deviceInfo': w.msg(32); break;
+      case 'reboot': w.msg(31, m => m.uint(1, req.mode || 0)); break;
+      case 'storageInfo': w.msg(28, m => m.string(1, req.path)); break;
+      case 'list': w.msg(7, m => m.string(1, req.path)); break;
+      case 'read': w.msg(9, m => m.string(1, req.path)); break;
+      case 'write': w.msg(11, m => { m.string(1, req.path); m.msg(2, f => f.bytes(4, req.chunk)); }); break;
+      case 'delete': w.msg(12, m => { m.string(1, req.path); m.bool(2, req.recursive); }); break;
+      case 'mkdir': w.msg(13, m => m.string(1, req.path)); break;
+      case 'rename': w.msg(30, m => { m.string(1, req.from); m.string(2, req.to); }); break;
+      case 'appStart': w.msg(16, m => { m.string(1, req.name); m.string(2, req.args || ''); }); break;
+      case 'screenStart': w.msg(20); break;
+      case 'screenStop': w.msg(21); break;
+      case 'input': w.msg(23, m => { m.uint(1, req.key); m.uint(2, req.type); }); break;
+      default: throw new Error('bilinmeyen istek ' + req.t);
+    }
+    const body = w.out();
+    const pre = new Writer(); pre.varint(body.length);
+    const out = new Uint8Array(pre.b.length + body.length);
+    out.set(pre.b, 0); out.set(body, pre.b.length);
+    return out;
+  }
+
+  const CHUNK = 512;
+  function writeParts(path, data) {
+    if (!data.length) return [{ t: 'write', path, chunk: new Uint8Array(0) }];
+    const parts = [];
+    for (let o = 0; o < data.length; o += CHUNK) parts.push({ t: 'write', path, chunk: data.subarray(o, o + CHUNK) });
+    return parts;
+  }
+
+  function decode(buf) {
+    const m = parse(buf);
+    let content = { t: 'none' };
+    for (const f of m.fields) {
+      if (f.n < 4 || typeof f.v === 'number') continue;
+      const b = parse(f.v);
+      switch (f.n) {
+        case 4: content = { t: 'empty' }; break;
+        case 6: content = { t: 'ping', data: b.bytes(1) }; break;
+        case 33: content = { t: 'deviceInfo', key: b.str(1), value: b.str(2) }; break;
+        case 29: content = { t: 'storageInfo', total: b.uint(1), free: b.uint(2) }; break;
+        case 8: content = { t: 'list', files: b.all(1).map(x => { const e = parse(x); return { dir: e.uint(1) === 1, name: e.str(2), size: e.uint(3) }; }) }; break;
+        case 10: content = { t: 'read', data: parse(b.bytes(1)).bytes(4) }; break;
+        case 22: content = { t: 'screen', data: b.bytes(1), orientation: b.uint(2) }; break;
+        default: content = { t: 'other', field: f.n };
+      }
+    }
+    return { id: m.uint(1), status: m.uint(2), hasNext: m.uint(3) !== 0, content };
+  }
+
+  class Assembler {
+    constructor() { this.buf = new Uint8Array(0); }
+    push(data) {
+      const nb = new Uint8Array(this.buf.length + data.length);
+      nb.set(this.buf); nb.set(data, this.buf.length); this.buf = nb;
+      const frames = [];
+      while (this.buf.length) {
+        let r;
+        try { r = readVarint(this.buf, 0); } catch { this.buf = new Uint8Array(0); break; }
+        if (!r || this.buf.length - r[1] < r[0]) break;
+        frames.push(this.buf.slice(r[1], r[1] + r[0]));
+        this.buf = this.buf.slice(r[1] + r[0]);
+      }
+      return frames;
+    }
+    reset() { this.buf = new Uint8Array(0); }
+  }
+
+  const STATUS = {
+    1: 'Bilinmeyen hata', 2: 'Komut çözülemedi', 3: 'Bu firmware komutu desteklemiyor', 4: 'Flipper meşgul',
+    5: 'SD kart hazır değil', 6: 'Dosya zaten var', 7: 'Dosya veya klasör bulunamadı', 8: 'Geçersiz parametre',
+    9: 'Erişim reddedildi', 10: 'Geçersiz dosya adı', 11: 'Depolama iç hatası', 12: 'Depolama işlemi desteklenmiyor',
+    13: 'Dosya zaten açık', 14: 'Komut kesildi', 15: 'Geçersiz parametreler', 16: 'Uygulama başlatılamadı',
+    17: "Flipper'da başka bir uygulama açık. Kumanda sekmesinden Geri'ye basıp ana menüye dönün.",
+    18: 'Klasör boş değil', 21: 'Uygulama çalışmıyor', 22: 'Uygulama komut hatası',
+  };
+  const describe = s => STATUS[s] || ('Hata kodu ' + s);
+
+  /** Pixel test for u8g2 page layout (128x64, 8 rows per byte). */
+  const pixel = (frame, x, y) => (frame[(y >> 3) * 128 + x] >> (y & 7)) & 1;
+
+  const join = (dir, name) => (dir.endsWith('/') ? dir + name : dir + '/' + name);
+  const parent = p => { const i = p.lastIndexOf('/'); return i <= 0 ? '/' : p.slice(0, i); };
+  const ext = n => { const i = n.lastIndexOf('.'); return i < 0 ? '' : n.slice(i + 1).toLowerCase(); };
+  const prettyName = n => n.replace(/\.[^.]+$/, '').replace(/_/g, ' ').split(' ').filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+  const folderFor = e => ({ fap: '/ext/apps/Tools', sub: '/ext/subghz', ir: '/ext/infrared', nfc: '/ext/nfc', rfid: '/ext/lfrfid', ibtn: '/ext/ibutton', txt: '/ext/badusb' }[e] || '/ext');
+
+  return { Writer, readVarint, parse, encode, decode, writeParts, Assembler, describe, pixel, join, parent, ext, prettyName, folderFor, KEY, INPUT, CHUNK };
+})();
+if (typeof module !== 'undefined') module.exports = Proto;
+// PROTO-END
+
+// ---------- BLE + RPC session ----------
+const UUID = {
+  service: '8fe5b3d5-2e7f-4a98-2a48-7acc60fe0000',
+  read: '19ed82ae-ed21-4c9d-4145-228e61fe0000',   // Flipper -> phone
+  write: '19ed82ae-ed21-4c9d-4145-228e62fe0000',  // phone -> Flipper
+  flow: '19ed82ae-ed21-4c9d-4145-228e63fe0000',   // free RX buffer bytes (uint32 BE)
+};
+const BLE_CHUNK = 128;
+
+class RpcError extends Error {
+  constructor(status) { super(Proto.describe(status)); this.status = status; }
+}
+
+class Flipper {
+  constructor() {
+    this.pending = new Map(); this.nextId = 1; this.asm = new Proto.Assembler();
+    this.queue = []; this.writing = false; this.free = 0; this.connected = false;
+    this.lastActivity = Date.now(); this.watchdog = null;
+    this.onScreen = null; this.onDisconnect = null;
+  }
+
+  async connect() {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'Flipper' }, { services: [0x3080] }, { services: [0x3081] }, { services: [0x3082] }],
+      optionalServices: [UUID.service],
+    });
+    this.device = device;
+    device.addEventListener('gattserverdisconnected', () => this._dropped());
+    const server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(UUID.service);
+    this.rx = await svc.getCharacteristic(UUID.read);
+    this.tx = await svc.getCharacteristic(UUID.write);
+    try { this.flowChar = await svc.getCharacteristic(UUID.flow); } catch { this.flowChar = null; }
+
+    this.rx.addEventListener('characteristicvaluechanged', e => this._onData(bytesOf(e.target.value)));
+    if (this.flowChar) {
+      this.flowChar.addEventListener('characteristicvaluechanged', e => this._onFlow(e.target.value));
+      await this.flowChar.startNotifications();
+      this._onFlow(await this.flowChar.readValue());
+    } else {
+      this.free = Infinity;
+    }
+    // Subscribing to the encrypted characteristic triggers iOS pairing (PIN on Flipper).
+    await this.rx.startNotifications();
+    this.asm.reset();
+    this.connected = true;
+    this.name = device.name || 'Flipper';
+  }
+
+  disconnect() {
+    try { this.device && this.device.gatt.disconnect(); } catch {}
+    this._dropped();
+  }
+
+  _dropped() {
+    if (!this.connected && !this.pending.size) return;
+    this.connected = false; this.queue = [];
+    const err = new Error('Bağlantı koptu.');
+    for (const p of this.pending.values()) p.reject(err);
+    this.pending.clear();
+    if (this.onDisconnect) this.onDisconnect();
+  }
+
+  _onFlow(dv) {
+    if (dv && dv.byteLength >= 4) { this.free = dv.getUint32(0, false); this._pump(); }
+  }
+
+  _onData(bytes) {
+    this.lastActivity = Date.now();
+    for (const frame of this.asm.push(bytes)) {
+      let r; try { r = Proto.decode(frame); } catch { continue; }
+      if (r.content.t === 'screen') { if (this.onScreen) this.onScreen(r.content); continue; }
+      const p = this.pending.get(r.id);
+      if (!p) continue;
+      if (r.status !== 0) { this.pending.delete(r.id); p.reject(new RpcError(r.status)); continue; }
+      p.resps.push(r);
+      if (!r.hasNext) { this.pending.delete(r.id); p.resolve(p.resps); }
+    }
+  }
+
+  async _pump() {
+    if (this.writing) return;
+    this.writing = true;
+    try {
+      while (this.connected && this.queue.length && this.free > 0) {
+        const item = this.queue[0];
+        const n = Math.min(BLE_CHUNK, this.free, item.data.length - item.off);
+        const chunk = item.data.slice(item.off, item.off + n);
+        this.free -= n;
+        if (this.tx.writeValueWithResponse) await this.tx.writeValueWithResponse(chunk);
+        else await this.tx.writeValue(chunk);
+        item.off += n;
+        this.lastActivity = Date.now();
+        if (item.off >= item.data.length) { this.queue.shift(); if (item.onSent) item.onSent(); }
+      }
+    } catch (e) {
+      this.queue = [];
+      for (const p of this.pending.values()) p.reject(new Error('Yazma hatası: ' + e.message));
+      this.pending.clear();
+    } finally {
+      this.writing = false;
+    }
+  }
+
+  /** Sends one command (possibly multi-part) and resolves with all responses. */
+  send(parts, { timeout = 15000, onProgress } = {}) {
+    if (!this.connected) return Promise.reject(new Error('Flipper bağlı değil.'));
+    if (!Array.isArray(parts)) parts = [parts];
+    const id = this.nextId; this.nextId = this.nextId >= 0xffffffff ? 1 : this.nextId + 1;
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject, resps: [], timeout });
+      this.lastActivity = Date.now();
+      parts.forEach((part, i) => {
+        const data = Proto.encode(part, id, i < parts.length - 1);
+        const frac = (i + 1) / parts.length;
+        this.queue.push({ data, off: 0, onSent: onProgress ? () => onProgress(frac) : null });
+      });
+      this._pump();
+      this._startWatchdog();
+    });
+  }
+
+  // Times out only when the link has been idle, so long uploads don't fail.
+  _startWatchdog() {
+    if (this.watchdog) return;
+    this.watchdog = setInterval(() => {
+      if (!this.pending.size) { clearInterval(this.watchdog); this.watchdog = null; return; }
+      if (this.writing || this.queue.length) return;
+      const idle = Date.now() - this.lastActivity;
+      for (const [id, p] of this.pending) {
+        if (idle > p.timeout) { this.pending.delete(id); p.reject(new Error('Flipper yanıt vermedi (zaman aşımı).')); }
+      }
+    }, 1000);
+  }
+
+  // High-level API
+  async ping() { const t = performance.now(); await this.send({ t: 'ping', data: new TextEncoder().encode('zero') }); return performance.now() - t; }
+  async deviceInfo() {
+    return (await this.send({ t: 'deviceInfo' })).filter(r => r.content.t === 'deviceInfo')
+      .map(r => [r.content.key, r.content.value]).sort((a, b) => a[0].localeCompare(b[0]));
+  }
+  async storageInfo(path) {
+    const r = (await this.send({ t: 'storageInfo', path })).find(x => x.content.t === 'storageInfo');
+    return r ? r.content : null;
+  }
+  async list(path) {
+    const files = (await this.send({ t: 'list', path })).flatMap(r => r.content.t === 'list' ? r.content.files : []);
+    return files.sort((a, b) => (a.dir !== b.dir ? (a.dir ? -1 : 1) : a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' })));
+  }
+  async read(path) {
+    const chunks = (await this.send({ t: 'read', path }, { timeout: 30000 })).filter(r => r.content.t === 'read').map(r => r.content.data);
+    const out = new Uint8Array(chunks.reduce((s, c) => s + c.length, 0));
+    let o = 0; for (const c of chunks) { out.set(c, o); o += c.length; }
+    return out;
+  }
+  write(path, data, onProgress) { return this.send(Proto.writeParts(path, data), { timeout: 30000, onProgress }); }
+  async mkdirs(path) {
+    let cur = '';
+    for (const part of path.split('/').filter(Boolean)) {
+      cur += '/' + part;
+      if (cur === '/ext' || cur === '/int') continue;
+      try { await this.send({ t: 'mkdir', path: cur }); } catch (e) { if (e.status !== 6) throw e; }
+    }
+  }
+  remove(path, recursive = true) { return this.send({ t: 'delete', path, recursive }, { timeout: 30000 }); }
+  rename(from, to) { return this.send({ t: 'rename', from, to }); }
+  launch(name, args = '') { return this.send({ t: 'appStart', name, args }); }
+  screenStart() { return this.send({ t: 'screenStart' }); }
+  screenStop() { return this.send({ t: 'screenStop' }).catch(() => {}); }
+  async press(key, long) {
+    await this.send({ t: 'input', key, type: Proto.INPUT.press });
+    await this.send({ t: 'input', key, type: long ? Proto.INPUT.long : Proto.INPUT.short });
+    await this.send({ t: 'input', key, type: Proto.INPUT.release });
+  }
+  reboot() { this.send({ t: 'reboot', mode: 0 }, { timeout: 3000 }).catch(() => {}); }
+}
+
+function bytesOf(dv) { return new Uint8Array(dv.buffer.slice(dv.byteOffset, dv.byteOffset + dv.byteLength)); }
+
+// ---------- UI helpers ----------
+const $ = s => document.querySelector(s);
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'class') el.className = v;
+    else if (k === 'style') el.style.cssText = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) el.append(c instanceof Node ? c : String(c));
+  return el;
+}
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  const u = ['KB', 'MB', 'GB']; let i = -1;
+  do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
+  return n.toFixed(n < 10 ? 1 : 0).replace('.', ',') + ' ' + u[i];
+}
+let toastTimer;
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), err ? 5000 : 2500);
+}
+const fail = e => toast(e && e.message ? e.message : String(e), true);
+
+/** Bottom sheet. `build(close)` returns the content nodes. Resolves with close(value). */
+function sheet(title, build) {
+  return new Promise(resolve => {
+    let scrim;
+    const close = v => { scrim.remove(); resolve(v); };
+    const body = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': title }, h('h3', {}, title), build(close));
+    scrim = h('div', { class: 'scrim', onclick: e => { if (e.target === scrim && !scrim.dataset.locked) close(null); } }, body);
+    document.body.append(scrim);
+    const first = body.querySelector('input, button'); if (first) first.focus();
+  });
+}
+const actionSheet = (title, items) => sheet(title, close => h('div', { class: 'acts' },
+  items.map((it, i) => h('button', { class: 'btn block' + (it.danger ? ' danger' : '') + (it.primary ? ' primary' : ''), onclick: () => close(i) }, it.label)),
+  h('button', { class: 'btn block', onclick: () => close(null) }, 'Vazgeç')));
+const confirmSheet = (title, label) => actionSheet(title, [{ label, danger: true }]).then(i => i === 0);
+const promptSheet = (title, value, label) => sheet(title, close => {
+  const inp = h('input', { class: 'input', id: 'prompt-input', value, autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false' });
+  const form = h('form', { class: 'acts', onsubmit: e => { e.preventDefault(); if (inp.value.trim()) close(inp.value.trim()); } },
+    inp, h('button', { class: 'btn primary block', type: 'submit' }, label), h('button', { class: 'btn block', type: 'button', onclick: () => close(null) }, 'Vazgeç'));
+  return form;
+});
+
+async function shareFile(name, data) {
+  const file = new File([data], name, { type: 'application/octet-stream' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const url = URL.createObjectURL(file);
+  const a = h('a', { href: url, download: name }); document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// ---------- App ----------
+const fz = new Flipper();
+let currentTab = 'apps';
+let filePath = '/ext';
+let appCats = [];
+
+function setStatus(text, cls) { const s = $('#status'); s.textContent = text; s.className = 'pill' + (cls ? ' ' + cls : ''); }
+
+function showConnected(on) {
+  $('#view-connect').hidden = on;
+  $('#tabs').hidden = !on;
+  for (const t of ['apps', 'files', 'remote', 'device']) $('#view-' + t).hidden = !on || t !== currentTab;
+}
+
+async function connect() {
+  const btn = $('#connect'); btn.disabled = true; $('#connect-error').hidden = true;
+  setStatus('Bağlanıyor…', 'busy');
+  try {
+    await fz.connect();
+    setStatus(fz.name, 'on');
+    showConnected(true);
+    selectTab('apps');
+  } catch (e) {
+    setStatus('Bağlı değil');
+    if (e.name !== 'NotFoundError') { // NotFoundError = user closed the picker
+      $('#connect-error').textContent = 'Bağlanılamadı: ' + e.message + '. Flipper\'da Bluetooth açık mı? Sorun sürerse iPhone Ayarlar → Bluetooth\'ta Flipper\'ı unutup tekrar deneyin.';
+      $('#connect-error').hidden = false;
+    }
+    try { fz.disconnect(); } catch {}
+  } finally { btn.disabled = false; }
+}
+
+fz.onDisconnect = () => {
+  setStatus('Bağlı değil');
+  showConnected(false);
+  toast('Flipper bağlantısı koptu.', true);
+};
+
+function selectTab(tab) {
+  if (currentTab === 'remote' && tab !== 'remote') fz.screenStop();
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  showConnected(true);
+  window.scrollTo(0, 0);
+  if (tab === 'apps') loadApps();
+  if (tab === 'files') loadFiles();
+  if (tab === 'remote') startRemote();
+  if (tab === 'device') loadDevice();
+}
+
+// --- Apps ---
+const BUILTINS = [
+  ['Sub-GHz', 'radyo 300–928 MHz'], ['NFC', '13,56 MHz'], ['125 kHz RFID', 'düşük frekans'],
+  ['Infrared', 'kızılötesi'], ['Bad USB', 'klavye betikleri'], ['iButton', '1-Wire anahtar'], ['GPIO', 'pinler'],
+];
+
+async function launch(name, label, args = '') {
+  try {
+    await fz.launch(name, args);
+    const i = await actionSheet((label || name) + ' Flipper\'da açıldı', [{ label: 'Kumandayı aç', primary: true }]);
+    if (i === 0) selectTab('remote');
+  } catch (e) { toast((label || name) + ' açılamadı: ' + e.message, true); }
+}
+
+function renderBuiltins() {
+  $('#builtins').replaceChildren(...BUILTINS.map(([n, s]) => h('button', { class: 'tile', onclick: () => launch(n) }, h('b', {}, n), h('span', {}, s))));
+}
+
+function renderApps() {
+  const q = $('#app-search').value.trim().toLocaleLowerCase('tr');
+  const box = $('#app-cats');
+  const cats = appCats.map(c => ({ name: c.name, apps: c.apps.filter(a => !q || Proto.prettyName(a.name).toLocaleLowerCase('tr').includes(q)) })).filter(c => c.apps.length);
+  if (!cats.length) {
+    box.replaceChildren(h('div', { class: 'list' }, h('div', { class: 'empty' }, q ? 'Aramaya uyan mod yok.' : '/ext/apps altında mod bulunamadı. "+ Mod yükle" ile .fap dosyası ekleyebilirsiniz.')));
+    return;
+  }
+  box.replaceChildren(...cats.map(c => h('div', { class: 'group' },
+    h('h2', {}, c.name + ' · ' + c.apps.length),
+    h('div', { class: 'list' }, c.apps.map(a => {
+      const path = '/ext/apps/' + c.name + '/' + a.name;
+      const label = Proto.prettyName(a.name);
+      return h('button', { class: 'item', onclick: () => appMenu(path, label) },
+        h('span', { class: 'ic' }, 'FAP'),
+        h('span', { class: 'txt' }, h('div', { class: 'name' }, label), h('div', { class: 'sub' }, fmtBytes(a.size))),
+        h('span', { class: 'go' }, 'Aç'));
+    })))));
+}
+
+async function appMenu(path, label) {
+  const i = await actionSheet(label, [{ label: 'Flipper\'da çalıştır', primary: true }, { label: 'Sil', danger: true }]);
+  if (i === 0) launch(path, label);
+  if (i === 1 && await confirmSheet(label + ' silinsin mi?', 'Sil')) {
+    try { await fz.remove(path, false); toast('Silindi'); loadApps(); } catch (e) { fail(e); }
+  }
+}
+
+async function loadApps() {
+  if (!appCats.length) $('#app-cats').replaceChildren(h('div', { class: 'list' }, h('div', { class: 'empty' }, h('span', { class: 'spin' }), ' Modlar okunuyor…')));
+  try {
+    const dirs = (await fz.list('/ext/apps')).filter(f => f.dir);
+    const cats = [];
+    for (const d of dirs) {
+      const apps = (await fz.list('/ext/apps/' + d.name)).filter(f => !f.dir && Proto.ext(f.name) === 'fap');
+      if (apps.length) cats.push({ name: d.name, apps });
+    }
+    appCats = cats;
+  } catch (e) {
+    if (e.status === 7) appCats = []; else fail(e);
+  }
+  renderApps();
+}
+
+/** Upload sheet with destination picker and progress. */
+async function uploadSheet(file, defaultFolder) {
+  const data = new Uint8Array(await file.arrayBuffer());
+  const isFap = Proto.ext(file.name) === 'fap';
+  let categories = [];
+  if (isFap) {
+    const base = ['Bluetooth', 'Games', 'GPIO', 'Infrared', 'Media', 'NFC', 'RFID', 'Sub-GHz', 'Tools', 'USB'];
+    let existing = [];
+    try { existing = (await fz.list('/ext/apps')).filter(f => f.dir).map(f => f.name); } catch {}
+    categories = [...new Set([...existing, ...base])].sort((a, b) => a.localeCompare(b, 'tr'));
+  }
+  return sheet(isFap ? 'Mod yükle' : 'Dosya yükle', close => {
+    const name = h('input', { class: 'input mono', id: 'up-name', value: file.name, autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false' });
+    const folder = h('input', { class: 'input mono', id: 'up-folder', value: defaultFolder || Proto.folderFor(Proto.ext(file.name)), autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false' });
+    const target = h('p', { class: 'small muted mono' });
+    const upd = () => (target.textContent = 'Hedef: ' + Proto.join(folder.value.trim(), name.value.trim()));
+    name.addEventListener('input', upd); folder.addEventListener('input', upd); upd();
+    let cat = null;
+    if (isFap) {
+      cat = h('select', { class: 'input', id: 'up-cat', onchange: () => { folder.value = '/ext/apps/' + cat.value; upd(); } },
+        categories.map(c => h('option', { value: c, selected: '/ext/apps/' + c === folder.value }, c)));
+    }
+    const bar = h('i'); const prog = h('div', { class: 'progress', hidden: true }, bar);
+    const go = h('button', { class: 'btn primary block' }, 'Flipper\'a yükle');
+    const cancel = h('button', { class: 'btn block', onclick: () => close(null) }, 'Vazgeç');
+    go.addEventListener('click', async () => {
+      const dir = folder.value.trim(), fname = name.value.trim();
+      if (!dir.startsWith('/') || !fname) { toast('Klasör / ile başlamalı ve dosya adı boş olmamalı.', true); return; }
+      go.disabled = cancel.disabled = true; prog.hidden = false;
+      document.querySelector('.scrim').dataset.locked = '1';
+      const path = Proto.join(dir, fname);
+      try {
+        await fz.mkdirs(dir);
+        await fz.write(path, data, f => { bar.style.width = Math.round(f * 100) + '%'; go.textContent = 'Gönderiliyor… %' + Math.round(f * 100); });
+        go.textContent = 'Yüklendi';
+        close(path);
+        toast(fname + ' yüklendi');
+        if (isFap) {
+          const i = await actionSheet(Proto.prettyName(fname) + ' yüklendi', [{ label: 'Şimdi çalıştır', primary: true }]);
+          if (i === 0) launch(path, Proto.prettyName(fname));
+        }
+      } catch (e) {
+        go.disabled = cancel.disabled = false; prog.hidden = true; go.textContent = 'Tekrar dene';
+        delete document.querySelector('.scrim').dataset.locked;
+        fail(e);
+      }
+    });
+    return h('div', { class: 'acts' },
+      h('p', { class: 'small muted' }, fmtBytes(data.length)),
+      h('label', { class: 'small', for: 'up-name' }, 'Dosya adı'), name,
+      cat && h('label', { class: 'small', for: 'up-cat' }, 'Kategori'), cat,
+      h('label', { class: 'small', for: 'up-folder' }, 'Klasör'), folder,
+      target, prog, go, cancel);
+  });
+}
+
+// --- Files ---
+const OPENERS = { sub: 'Sub-GHz', ir: 'Infrared', nfc: 'NFC', rfid: '125 kHz RFID', ibtn: 'iButton', txt: 'Bad USB' };
+
+function renderCrumbs() {
+  const parts = filePath.split('/').filter(Boolean);
+  const crumbs = [h('button', { onclick: () => openDir('/'), 'aria-current': filePath === '/' ? 'page' : null }, '/')];
+  let acc = '';
+  parts.forEach((p, i) => {
+    acc += '/' + p; const target = acc;
+    crumbs.push(h('button', { onclick: () => openDir(target), 'aria-current': i === parts.length - 1 ? 'page' : null }, p));
+  });
+  $('#crumbs').replaceChildren(...crumbs);
+  $('#file-upload').disabled = $('#file-mkdir').disabled = filePath === '/';
+}
+
+function openDir(p) { filePath = p; loadFiles(); }
+
+async function loadFiles() {
+  renderCrumbs();
+  const list = $('#file-list');
+  list.replaceChildren(h('div', { class: 'empty' }, h('span', { class: 'spin' }), ' Okunuyor…'));
+  try {
+    let files = await fz.list(filePath);
+    if (filePath === '/') files = files.filter(f => f.name !== 'any');
+    const rows = [];
+    if (filePath !== '/') rows.push(h('button', { class: 'item', onclick: () => openDir(Proto.parent(filePath)) }, h('span', { class: 'ic' }, '..'), h('span', { class: 'txt' }, 'Üst klasör')));
+    for (const f of files) {
+      const full = Proto.join(filePath, f.name);
+      const e = Proto.ext(f.name);
+      rows.push(h('button', { class: 'item', onclick: () => (f.dir ? openDir(full) : fileMenu(f, full)) },
+        h('span', { class: 'ic' }, f.dir ? 'DIR' : (e || 'FILE').slice(0, 4).toUpperCase()),
+        h('span', { class: 'txt' }, h('div', { class: 'name' }, f.name), f.dir ? null : h('div', { class: 'sub' }, fmtBytes(f.size))),
+        f.dir ? h('span', { class: 'go' }, '›') : null));
+    }
+    if (!files.length) rows.push(h('div', { class: 'empty' }, 'Klasör boş.'));
+    list.replaceChildren(...rows);
+  } catch (e) {
+    list.replaceChildren(h('div', { class: 'empty' }, e.message));
+  }
+}
+
+async function fileMenu(f, full) {
+  const e = Proto.ext(f.name);
+  const items = [];
+  const actions = [];
+  if (e === 'fap') { items.push({ label: 'Çalıştır', primary: true }); actions.push(() => launch(full, Proto.prettyName(f.name))); }
+  else if (OPENERS[e]) { items.push({ label: OPENERS[e] + ' ile aç', primary: true }); actions.push(() => launch(OPENERS[e], f.name, full)); }
+  items.push({ label: 'iPhone\'a indir' }); actions.push(() => download(f, full));
+  items.push({ label: 'Yeniden adlandır' }); actions.push(() => renameFile(f, full));
+  items.push({ label: 'Sil', danger: true }); actions.push(() => deleteFile(f, full));
+  const i = await actionSheet(f.name, items);
+  if (i != null) actions[i]();
+}
+
+async function download(f, full) {
+  toast('İndiriliyor…');
+  try { await shareFile(f.name, await fz.read(full)); } catch (e) { fail(e); }
+}
+async function renameFile(f, full) {
+  const n = await promptSheet('Yeniden adlandır', f.name, 'Kaydet');
+  if (!n || n === f.name) return;
+  try { await fz.rename(full, Proto.join(filePath, n)); loadFiles(); } catch (e) { fail(e); }
+}
+async function deleteFile(f, full) {
+  if (!await confirmSheet(f.name + ' silinsin mi?' + (f.dir ? ' İçindekiler de silinir.' : ''), 'Sil')) return;
+  try { await fz.remove(full); toast('Silindi'); loadFiles(); } catch (e) { fail(e); }
+}
+
+// --- Remote ---
+const lcd = $('#lcd'); const ctx = lcd.getContext('2d');
+function drawPlaceholder() {
+  lcd.width = 128; lcd.height = 64; lcd.classList.remove('vertical');
+  ctx.fillStyle = '#ff8200'; ctx.fillRect(0, 0, 128, 64);
+  ctx.fillStyle = '#000'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('ekran bekleniyor', 64, 35);
+}
+function drawFrame({ data, orientation }) {
+  const vertical = orientation === 2 || orientation === 3;
+  const W = vertical ? 64 : 128, H = vertical ? 128 : 64;
+  if (lcd.width !== W) { lcd.width = W; lcd.height = H; }
+  lcd.classList.toggle('vertical', vertical);
+  const img = ctx.createImageData(W, H); const px = img.data;
+  for (let oy = 0; oy < H; oy++) for (let ox = 0; ox < W; ox++) {
+    let sx, sy;
+    if (orientation === 1) { sx = 127 - ox; sy = 63 - oy; }
+    else if (orientation === 2) { sx = 127 - oy; sy = ox; }
+    else if (orientation === 3) { sx = oy; sy = 63 - ox; }
+    else { sx = ox; sy = oy; }
+    const on = Proto.pixel(data, sx, sy);
+    const p = (oy * W + ox) * 4;
+    px[p] = on ? 0 : 255; px[p + 1] = on ? 0 : 130; px[p + 2] = 0; px[p + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+fz.onScreen = c => { if (currentTab === 'remote') drawFrame(c); };
+async function startRemote() {
+  drawPlaceholder();
+  try { await fz.screenStart(); } catch (e) { toast('Ekran akışı başlatılamadı: ' + e.message, true); }
+}
+
+document.querySelectorAll('.key').forEach(btn => {
+  const key = Number(btn.dataset.key);
+  let timer = null, longFired = false;
+  const down = e => {
+    e.preventDefault();
+    btn.classList.add('down'); longFired = false;
+    timer = setTimeout(() => {
+      longFired = true; btn.classList.add('long');
+      if (navigator.vibrate) navigator.vibrate(30);
+      fz.press(key, true).catch(fail);
+    }, 500);
+  };
+  const up = e => {
+    e.preventDefault();
+    if (!btn.classList.contains('down')) return;
+    clearTimeout(timer); btn.classList.remove('down', 'long');
+    if (!longFired) fz.press(key, false).catch(fail);
+  };
+  btn.addEventListener('pointerdown', down);
+  btn.addEventListener('pointerup', up);
+  btn.addEventListener('pointerleave', () => { clearTimeout(timer); btn.classList.remove('down', 'long'); });
+  btn.addEventListener('pointercancel', () => { clearTimeout(timer); btn.classList.remove('down', 'long'); });
+  btn.addEventListener('contextmenu', e => e.preventDefault());
+  btn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fz.press(key, false).catch(fail); } });
+});
+
+// --- Device ---
+const HIGHLIGHT = [
+  ['hardware_name', 'Ad'], ['firmware_version', 'Firmware'], ['firmware_origin_fork', 'Firmware türü'],
+  ['firmware_branch', 'Dal'], ['firmware_build_date', 'Derleme tarihi'], ['hardware_region', 'Bölge'],
+];
+async function loadDevice() {
+  const info = $('#dev-info');
+  info.replaceChildren(h('div', { class: 'empty' }, h('span', { class: 'spin' })));
+  try {
+    const kv = await fz.deviceInfo();
+    const map = Object.fromEntries(kv);
+    const rows = HIGHLIGHT.filter(([k]) => map[k]).flatMap(([k, label]) => [h('div', { class: 'k' }, label), h('div', { class: 'v' }, map[k])]);
+    rows.push(h('div', { class: 'k' }, 'Gecikme'), h('div', { class: 'v', id: 'ping-v' }, '…'));
+    info.replaceChildren(...rows);
+    $('#dev-raw').replaceChildren(...kv.map(([k, v]) => h('div', {}, h('span', {}, k), v)));
+    $('#dev-raw-wrap').querySelector('summary').textContent = 'Tüm bilgiler (' + kv.length + ')';
+    const st = [];
+    for (const [path, label] of [['/ext', 'SD kart'], ['/int', 'Dahili']]) {
+      let s = null; try { s = await fz.storageInfo(path); } catch {}
+      if (s && s.total) {
+        const used = s.total - s.free;
+        st.push(h('div', { class: 'store' },
+          h('div', { class: 'top' }, h('span', {}, label), h('span', { class: 'small muted' }, fmtBytes(s.free) + ' boş / ' + fmtBytes(s.total))),
+          h('div', { class: 'meter' }, h('i', { style: 'width:' + (used / s.total * 100).toFixed(1) + '%' }))));
+      } else st.push(h('div', { class: 'store' }, h('div', { class: 'top' }, h('span', {}, label), h('span', { class: 'small muted' }, 'Yok'))));
+    }
+    $('#dev-storage').replaceChildren(...st);
+    doPing();
+  } catch (e) { info.replaceChildren(h('div', { class: 'empty' }, e.message)); }
+}
+async function doPing() {
+  try { const ms = await fz.ping(); const v = $('#ping-v'); if (v) v.textContent = Math.round(ms) + ' ms'; toast('Bağlantı çalışıyor: ' + Math.round(ms) + ' ms'); }
+  catch (e) { fail(e); }
+}
+
+// --- Wiring ---
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => selectTab(b.dataset.tab)));
+$('#connect').addEventListener('click', connect);
+$('#app-search').addEventListener('input', renderApps);
+$('#app-upload').addEventListener('click', () => $('#pick-app').click());
+$('#pick-app').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (f) { await uploadSheet(f); loadApps(); }
+});
+$('#file-upload').addEventListener('click', () => $('#pick-file').click());
+$('#pick-file').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (f) { await uploadSheet(f, filePath); loadFiles(); }
+});
+$('#file-mkdir').addEventListener('click', async () => {
+  const n = await promptSheet('Yeni klasör', '', 'Oluştur');
+  if (!n) return;
+  try { await fz.mkdirs(Proto.join(filePath, n)); loadFiles(); } catch (e) { fail(e); }
+});
+$('#file-refresh').addEventListener('click', loadFiles);
+$('#dev-ping').addEventListener('click', doPing);
+$('#dev-reboot').addEventListener('click', async () => { if (await confirmSheet('Flipper yeniden başlatılsın mı?', 'Yeniden başlat')) fz.reboot(); });
+$('#dev-disconnect').addEventListener('click', () => fz.disconnect());
+$('#copy-url').addEventListener('click', () => {
+  const inp = $('#page-url');
+  (navigator.clipboard ? navigator.clipboard.writeText(inp.value) : Promise.reject())
+    .then(() => toast('Adres kopyalandı'))
+    .catch(() => { inp.select(); toast('Adresi seçip kopyalayın'); });
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && currentTab === 'remote' && fz.connected) fz.screenStop(); else if (!document.hidden && currentTab === 'remote' && fz.connected) startRemote(); });
+
+renderBuiltins();
+drawPlaceholder();
+$('#page-url').value = location.href;
+if (!navigator.bluetooth) { $('#no-bt').hidden = false; $('#connect').disabled = true; }
+</script>
+</body>
+</html>
