@@ -165,6 +165,19 @@ video.cam { width: 100%; max-width: 100%; aspect-ratio: 3 / 4; object-fit: cover
 .dpad .c svg { stroke: var(--on-accent); }
 
 .flash { position: fixed; inset: 0; z-index: 40; background: #fff; pointer-events: none; }
+.bet { display: grid; gap: 10px; }
+.bet .head { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+.bet .head b { font-size: 15px; overflow-wrap: anywhere; }
+.bet .league { font-size: 12px; color: var(--muted); }
+.evb { font: 400 15px/1 var(--font-pixel); padding: 7px 9px; border-radius: 8px; background: var(--accent); color: var(--on-accent); white-space: nowrap; }
+.evb.warn { background: var(--panel-2); color: var(--bad); border: 1px solid var(--bad); }
+.nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.nums div { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px; display: grid; gap: 2px; min-width: 0; }
+.nums span { font-size: 11px; color: var(--muted); }
+.nums b { font: 500 16px var(--font-mono); font-variant-numeric: tabular-nums; }
+.pill { font: 11px/1 var(--font-mono); padding: 4px 7px; border-radius: 6px; background: var(--panel-2); color: var(--muted); }
+.pill.demo { background: var(--accent); color: var(--on-accent); }
+.pos { color: var(--ok); } .neg { color: var(--bad); }
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 50;
   bottom: calc(24px + env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 32px);
@@ -243,6 +256,8 @@ const ICON = {
   code: '<path d="M8 6l-6 6 6 6M16 6l6 6-6 6M14 4l-4 16"/>',
   key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3L20 3M16 7l3 3M14 9l2 2"/>',
   snake: '<path d="M4 18h6v-6h6V6h4"/><circle cx="20" cy="6" r="1"/>',
+  chart: '<path d="M3 20h18M6 16l4-5 3 3 5-7"/><path d="M15 7h3v3"/>',
+  book: '<path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11M9 8h6"/>',
   radio: '<path d="M4.9 19.1a10 10 0 010-14.2M19.1 4.9a10 10 0 010 14.2M8 16a5 5 0 010-8M16 8a5 5 0 010 8"/><circle cx="12" cy="12" r="1.5"/>',
 };
 const icon = n => h('span', { class: 'ic', html: '<svg viewBox="0 0 24 24">' + ICON[n] + '</svg>' });
@@ -273,7 +288,7 @@ let cleanup = null;
 function route() {
   if (cleanup) { try { cleanup(); } catch {} cleanup = null; }
   const id = location.hash.slice(1);
-  const tool = TOOLS.find(t => t.id === id);
+  const tool = [...MONEY, ...TOOLS].find(t => t.id === id);
   const main = $('#main');
   main.replaceChildren();
   window.scrollTo(0, 0);
@@ -282,11 +297,15 @@ function route() {
   if (!tool) return renderMenu(main);
   try { cleanup = tool.mount(main) || null; } catch (e) { main.append(h('p', { class: 'err' }, e.message)); }
 }
+const menuItem = t => h('button', { class: 'mi', onclick: () => (location.hash = t.id) }, icon(t.icon), h('div', {}, h('b', {}, t.name), h('span', {}, t.desc)), h('span', { class: 'arr' }, '›'));
 function renderMenu(main) {
   main.append(
     h('div', { class: 'hero' },
       h('div', { class: 'big' }, 'Telefonundaki araç kutusu'),
       h('p', { class: 'muted small' }, 'Flipper tarzı araçlar, sadece iPhone\'un kendi donanımıyla: kamera, mikrofon, hoparlör, hareket sensörleri, GPS ve Bluetooth.')),
+    h('h2', {}, 'Para'),
+    h('div', { class: 'menu' }, MONEY.map(menuItem)),
+    h('h2', {}, 'Araçlar'),
     h('div', { class: 'menu' }, TOOLS.map(t => h('button', { class: 'mi', onclick: () => (location.hash = t.id) }, icon(t.icon), h('div', {}, h('b', {}, t.name), h('span', {}, t.desc)), h('span', { class: 'arr' }, '›')))),
     h('h2', {}, 'Bu telefonda yapılamayanlar'),
     h('div', { class: 'menu' }, MISSING.map(([n, why]) => h('div', { class: 'mi off' }, icon('radio'), h('div', {}, h('b', {}, n), h('span', {}, why)), h('span', { class: 'tag' }, 'donanım')))),
@@ -802,6 +821,259 @@ function mountSnake(main) {
   window.addEventListener('keydown', keys);
   draw();
   return () => { clearInterval(timer); window.removeEventListener('keydown', keys); };
+}
+
+
+// ---------- Para: value bet + bahis defteri ----------
+const MONEY = [
+  { id: 'value', icon: 'chart', name: 'Value bet tarayıcı', desc: "Tipico oranlarını Pinnacle'ın gerçek oranıyla karşılaştırır", mount: mountValue },
+  { id: 'defter', icon: 'book', name: 'Bahis defteri', desc: 'Oynadıkların, gerçek kâr/zarar ve getiri', mount: mountLedger },
+];
+const LEAGUES = [
+  ['soccer_germany_bundesliga', 'Bundesliga'], ['soccer_germany_bundesliga2', '2. Bundesliga'], ['soccer_epl', 'Premier League'],
+  ['soccer_spain_la_liga', 'La Liga'], ['soccer_italy_serie_a', 'Serie A'], ['soccer_france_ligue_one', 'Ligue 1'],
+  ['soccer_turkey_super_league', 'Süper Lig'], ['soccer_netherlands_eredivisie', 'Eredivisie'], ['soccer_portugal_primeira_liga', 'Primeira Liga'],
+  ['soccer_uefa_champs_league', 'Şampiyonlar Ligi'], ['soccer_uefa_europa_league', 'Avrupa Ligi'], ['soccer_uefa_europa_conference_league', 'Konferans Ligi'],
+];
+const jget = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+const jset = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const num = (n, d = 2) => Number(n).toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const eur = n => num(n) + ' €';
+const pct = (n, d = 1) => (n >= 0 ? '+' : '') + num(n * 100, d) + ' %';
+
+/** Pure: finds outcomes where the soft book (Tipico) pays more than the sharp book's (Pinnacle) margin-free price. */
+function findValue(events, opt) {
+  const { minEv = 0.02, bankroll = 100, kellyFrac = 0.25, sharp = 'pinnacle', soft = 'tipico_de', now = Date.now() } = opt || {};
+  const out = [];
+  for (const ev of events || []) {
+    if (new Date(ev.commence_time).getTime() <= now) continue;
+    const S = (ev.bookmakers || []).find(b => b.key === sharp), T = (ev.bookmakers || []).find(b => b.key === soft);
+    if (!S || !T) continue;
+    for (const tm of T.markets || []) {
+      const sm = (S.markets || []).find(m => m.key === tm.key);
+      if (!sm) continue;
+      const groups = new Map();
+      for (const o of sm.outcomes) { const k = o.point == null ? '' : String(o.point); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(o); }
+      for (const [pt, souts] of groups) {
+        if (souts.length < 2 || souts.some(o => !(o.price > 1))) continue;
+        const inv = souts.map(o => 1 / o.price), sum = inv.reduce((a, b) => a + b, 0);
+        souts.forEach((so, i) => {
+          const prob = inv[i] / sum;
+          const to = tm.outcomes.find(o => o.name === so.name && (o.point == null ? '' : String(o.point)) === pt);
+          if (!to || !(to.price > 1)) return;
+          const evv = to.price * prob - 1;
+          if (evv < minEv) return;
+          const b = to.price - 1, kelly = Math.max(0, (b * prob - (1 - prob)) / b);
+          out.push({
+            key: ev.id + '|' + tm.key + '|' + so.name + '|' + pt,
+            league: ev.sport_title, home: ev.home_team, away: ev.away_team, time: ev.commence_time,
+            market: tm.key, point: pt, outcome: so.name, odds: to.price, fair: 1 / prob, prob, ev: evv,
+            stake: Math.min(bankroll * kelly * kellyFrac, bankroll * 0.05), margin: sum - 1,
+            age: Math.max(0, now - new Date(T.last_update || ev.commence_time).getTime()),
+          });
+        });
+      }
+    }
+  }
+  return out.sort((a, b) => b.ev - a.ev);
+}
+function pickLabel(v) {
+  if (v.market === 'totals') return (v.outcome === 'Over' ? 'Üst ' : 'Alt ') + String(v.point).replace('.', ',') + ' gol';
+  if (v.outcome === 'Draw') return 'X · Beraberlik';
+  return (v.outcome === v.home ? '1 · ' : '2 · ') + v.outcome;
+}
+function demoEvents() {
+  const t = h => new Date(Date.now() + h * 3600e3).toISOString(), up = new Date().toISOString();
+  const bm = (key, h2h, tot) => ({ key, last_update: up, markets: [
+    { key: 'h2h', outcomes: h2h.map(([name, price]) => ({ name, price })) },
+    { key: 'totals', outcomes: [{ name: 'Over', price: tot[0], point: 2.5 }, { name: 'Under', price: tot[1], point: 2.5 }] }] });
+  const mk = (id, league, home, away, hrs, pin, tip, pt, tt) => ({ id, sport_title: league, home_team: home, away_team: away, commence_time: t(hrs),
+    bookmakers: [bm('pinnacle', [[home, pin[0]], ['Draw', pin[1]], [away, pin[2]]], pt), bm('tipico_de', [[home, tip[0]], ['Draw', tip[1]], [away, tip[2]]], tt)] });
+  return [
+    mk('d1', 'Bundesliga', 'Örnek Kırmızılar', 'Örnek Maviler', 20, [2.10, 3.60, 3.55], [2.05, 3.90, 3.40], [1.80, 2.08], [1.75, 2.05]),
+    mk('d2', 'Premier League', 'Örnek Şehir', 'Örnek Liman', 44, [1.62, 4.20, 5.60], [1.60, 4.10, 6.00], [1.95, 1.93], [2.02, 1.80]),
+    mk('d3', 'Süper Lig', 'Örnek Aslanlar', 'Örnek Kartallar', 70, [2.45, 3.30, 2.95], [2.40, 3.25, 2.90], [1.88, 2.00], [1.85, 1.95]),
+  ];
+}
+
+function mountValue(main) {
+  const st = jget('vb-settings', { leagues: ['soccer_germany_bundesliga', 'soccer_epl', 'soccer_spain_la_liga', 'soccer_italy_serie_a', 'soccer_turkey_super_league'], totals: false, minEv: 2, bankroll: 100, kelly: 25 });
+  let key = (() => { try { return localStorage.getItem('odds-key') || ''; } catch { return ''; } })();
+  const results = h('div', { style: 'display:grid;gap:10px' });
+  const status = h('p', { class: 'small muted' });
+
+  // key card
+  const keyIn = h('input', { class: 'input mono', id: 'vb-key', placeholder: 'API anahtarı', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', value: key });
+  const keyCard = h('div', { class: 'card' },
+    h('b', {}, 'The Odds API anahtarı'),
+    h('p', { class: 'small muted' }, 'the-odds-api.com adresinden ücretsiz hesap açın (ayda 500 sorgu). Gelen anahtarı buraya yapıştırın. Anahtar sadece bu telefonda saklanır, başka yere gönderilmez.'),
+    keyIn,
+    h('div', { class: 'row' },
+      h('button', { class: 'btn primary', onclick: () => { key = keyIn.value.trim(); try { localStorage.setItem('odds-key', key); } catch {} toast(key ? 'Anahtar kaydedildi' : 'Anahtar silindi'); keyCard.hidden = !!key; } }, 'Kaydet'),
+      h('a', { class: 'btn', href: 'https://the-odds-api.com/#get-access', target: '_blank', rel: 'noopener' }, 'Anahtar al')));
+  keyCard.hidden = !!key;
+
+  // settings
+  const lg = LEAGUES.map(([k, n]) => { const c = h('input', { type: 'checkbox', id: 'lg-' + k, checked: st.leagues.includes(k) }); return [k, n, c]; });
+  const totals = h('input', { type: 'checkbox', id: 'vb-tot', checked: st.totals });
+  const minEv = h('input', { class: 'input mono', id: 'vb-min', type: 'number', inputmode: 'decimal', step: '0.5', min: '0', value: st.minEv });
+  const bank = h('input', { class: 'input mono', id: 'vb-bank', type: 'number', inputmode: 'decimal', min: '1', value: st.bankroll });
+  const kel = h('select', { class: 'input', id: 'vb-kelly' }, [[10, '1/10 Kelly (çok temkinli)'], [25, '1/4 Kelly (önerilen)'], [50, '1/2 Kelly (riskli)']].map(([v, l]) => h('option', { value: v, selected: st.kelly == v }, l)));
+  const save = () => { Object.assign(st, { leagues: lg.filter(x => x[2].checked).map(x => x[0]), totals: totals.checked, minEv: +minEv.value || 0, bankroll: +bank.value || 100, kelly: +kel.value }); jset('vb-settings', st); costLbl(); };
+  const cost = h('span', {});
+  const costLbl = () => { const n = lg.filter(x => x[2].checked).length * (totals.checked ? 2 : 1); cost.textContent = 'Bu tarama ' + n + ' sorgu kullanır.'; };
+  [...lg.map(x => x[2]), totals, minEv, bank, kel].forEach(el => el.addEventListener('change', save));
+  const settings = h('details', { class: 'card' }, h('summary', {}, 'Ayarlar: ligler, kasa, bahis miktarı'),
+    h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px' }, lg.map(([k, n, c]) => h('label', { class: 'chk', for: 'lg-' + k }, c, n))),
+    h('label', { class: 'chk', for: 'vb-tot' }, totals, 'Alt/Üst 2,5 gol de tara (2 kat sorgu)'),
+    h('div', { class: 'row' }, h('label', { class: 'lbl', for: 'vb-min' }, 'En az beklenen kâr (%)', minEv), h('label', { class: 'lbl', for: 'vb-bank' }, 'Bahis kasası (€)', bank)),
+    h('label', { class: 'lbl', for: 'vb-kelly' }, 'Bahis miktarı yöntemi', kel),
+    h('button', { class: 'btn', onclick: () => { keyCard.hidden = false; } }, 'API anahtarını değiştir'));
+  costLbl();
+
+  const scanBtn = h('button', { class: 'btn primary block' }, 'Tara');
+  const demoBtn = h('button', { class: 'btn block' }, 'Örnek verilerle göster');
+
+  function render(list, meta) {
+    results.replaceChildren();
+    if (meta.demo) results.append(h('div', { class: 'note' }, h('span', { class: 'pill demo' }, 'ÖRNEK'), 'Bunlar uydurma takımlarla örnek veriler. Gerçek fırsatlar için API anahtarı girip Tara\'ya basın.'));
+    if (!list.length) { results.append(h('div', { class: 'note' }, 'Şu an eşiği geçen value bet yok. Bu normal: fırsatlar az ve kısa ömürlü. Eşiği düşürebilir, başka ligler ekleyebilir veya maç saatine yakın tekrar tarayabilirsiniz.')); return; }
+    for (const v of list) {
+      const suspicious = v.ev > 0.15;
+      const stakeIn = h('input', { class: 'input mono', type: 'number', inputmode: 'decimal', step: '0.5', value: Math.max(0.5, Math.round(v.stake * 2) / 2) });
+      const addBox = h('div', { class: 'row', hidden: true }, stakeIn, h('button', { class: 'btn primary', onclick: () => {
+        const bets = jget('bets', []);
+        bets.unshift({ id: Date.now() + Math.random().toString(36).slice(2, 6), t: Date.now(), match: v.home + ' – ' + v.away, pick: pickLabel(v), odds: v.odds, fair: v.fair, stake: +stakeIn.value || 0, status: 'open', kick: v.time });
+        jset('bets', bets); addBox.hidden = true; toast('Deftere eklendi');
+      } }, 'Ekle'));
+      const when = new Date(v.time).toLocaleString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      results.append(h('div', { class: 'card bet' },
+        h('div', { class: 'head' }, h('div', {}, h('div', { class: 'league' }, v.league + ' · ' + when), h('b', {}, v.home + ' – ' + v.away)), h('span', { class: 'evb' + (suspicious ? ' warn' : '') }, pct(v.ev))),
+        h('div', {}, 'Bahis: ', h('b', {}, pickLabel(v))),
+        h('div', { class: 'nums' },
+          h('div', {}, h('span', {}, 'Tipico oranı'), h('b', {}, num(v.odds))),
+          h('div', {}, h('span', {}, 'Gerçek oran'), h('b', {}, num(v.fair))),
+          h('div', {}, h('span', {}, 'Önerilen'), h('b', {}, eur(v.stake)))),
+        h('p', { class: 'small muted' }, 'Gerçek olasılık ' + num(v.prob * 100, 1) + ' % · Pinnacle payı ' + num(v.margin * 100, 1) + ' %' + (v.age > 15 * 60e3 ? ' · Tipico oranı ' + Math.round(v.age / 60e3) + ' dk önce güncellendi' : '')),
+        suspicious ? h('p', { class: 'small neg' }, 'Çok yüksek fark. Oran eski veya hatalı olabilir; oynamadan önce Tipico\'da güncel oranı kontrol edin.') : null,
+        h('p', { class: 'small muted' }, 'Tipico\'da oran ' + num(v.odds) + '\'den düştüyse fırsat kaybolmuş olabilir. ' + num(v.fair * (1 + (+st.minEv || 0) / 100)) + ' altında oynamayın.'),
+        h('button', { class: 'btn', onclick: () => { addBox.hidden = !addBox.hidden; } }, 'Oynadım, deftere ekle'), addBox));
+    }
+  }
+
+  async function scan() {
+    if (!key) { keyCard.hidden = false; keyIn.focus(); toast('Önce API anahtarını girin'); return; }
+    const leagues = lg.filter(x => x[2].checked);
+    if (!leagues.length) { toast('Ayarlar\'dan en az bir lig seçin'); return; }
+    scanBtn.disabled = true; let all = [], remaining = null; const errs = [];
+    for (let i = 0; i < leagues.length; i++) {
+      const [k, n] = leagues[i];
+      scanBtn.textContent = 'Taranıyor… ' + (i + 1) + '/' + leagues.length;
+      try {
+        const url = 'https://api.the-odds-api.com/v4/sports/' + k + '/odds?apiKey=' + encodeURIComponent(key) + '&regions=eu&markets=' + (st.totals ? 'h2h,totals' : 'h2h') + '&bookmakers=pinnacle,tipico_de&oddsFormat=decimal&dateFormat=iso';
+        const r = await fetch(url);
+        const rem = r.headers.get('x-requests-remaining'); if (rem != null) remaining = rem;
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          if (r.status === 401 && j.error_code === 'INVALID_KEY') { errs.push('API anahtarı geçersiz. Ayarlar\'dan kontrol edin.'); break; }
+          if (r.status === 401 || r.status === 429) { errs.push('Bu ayın ücretsiz sorgu hakkı bitti veya çok hızlı istek gönderildi.'); break; }
+          if (r.status !== 404 && r.status !== 422) errs.push(n + ': ' + (j.message || 'HTTP ' + r.status));
+          continue;
+        }
+        all = all.concat(await r.json());
+      } catch (e) { errs.push(n + ': bağlantı hatası'); }
+    }
+    scanBtn.disabled = false; scanBtn.textContent = 'Tekrar tara';
+    const list = findValue(all, { minEv: st.minEv / 100, bankroll: st.bankroll, kellyFrac: st.kelly / 100 });
+    const both = all.filter(e => (e.bookmakers || []).some(b => b.key === 'pinnacle') && (e.bookmakers || []).some(b => b.key === 'tipico_de')).length;
+    status.textContent = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) + ' · ' + all.length + ' maç tarandı, ' + both + ' tanesinde iki şirketin de oranı var · ' + list.length + ' fırsat' + (remaining != null ? ' · kalan sorgu: ' + remaining : '');
+    if (errs.length) status.append(h('span', { class: 'err', style: 'display:block' }, errs.join(' ')));
+    jset('vb-last', { t: Date.now(), list, status: status.textContent });
+    render(list, {});
+  }
+  scanBtn.onclick = scan;
+  demoBtn.onclick = () => { status.textContent = 'Örnek veri'; render(findValue(demoEvents(), { minEv: st.minEv / 100, bankroll: st.bankroll, kellyFrac: st.kelly / 100 }), { demo: true }); };
+
+  main.append(
+    h('div', { class: 'note' }, 'Nasıl çalışır: Pinnacle\'ın oranından kâr payı çıkarılıp gerçek olasılık bulunur. Tipico bundan yüksek oran veriyorsa uzun vadede artı beklentili bir bahistir. Tek bahiste kazanma garantisi yoktur; getiri yüzlerce bahiste ortaya çıkar.'),
+    keyCard, settings, h('p', { class: 'small muted' }, cost), scanBtn, demoBtn, status, results,
+    h('div', { class: 'note' }, 'Sorumlu oyun: Kaybetmeyi göze alamayacağınız parayla oynamayın. Yardım hattı (ücretsiz, anonim): Check dein Spiel 0800 1 37 27 00'));
+
+  const last = jget('vb-last', null);
+  if (last && Date.now() - last.t < 6 * 3600e3 && last.list) { status.textContent = 'Son tarama: ' + last.status; render(last.list.filter(v => new Date(v.time) > Date.now()), {}); }
+}
+
+function mountLedger(main) {
+  let bets = jget('bets', []);
+  const statsBox = h('div', { style: 'display:grid;gap:10px' });
+  const listBox = h('div', { style: 'display:grid;gap:8px' });
+  const profitOf = b => b.status === 'won' ? b.stake * (b.odds - 1) : b.status === 'lost' ? -b.stake : 0;
+  const saveAll = () => { jset('bets', bets); draw(); };
+
+  const f = { match: h('input', { class: 'input', id: 'bt-m', placeholder: 'Örn. Bayern – Dortmund' }), pick: h('input', { class: 'input', id: 'bt-p', placeholder: 'Örn. 1 · Bayern' }),
+    odds: h('input', { class: 'input mono', id: 'bt-o', type: 'number', inputmode: 'decimal', step: '0.01', placeholder: '2,10' }),
+    stake: h('input', { class: 'input mono', id: 'bt-s', type: 'number', inputmode: 'decimal', step: '0.5', placeholder: '5' }),
+    fair: h('input', { class: 'input mono', id: 'bt-f', type: 'number', inputmode: 'decimal', step: '0.01', placeholder: 'boş bırakılabilir' }) };
+  const form = h('form', { class: 'card', onsubmit: e => {
+    e.preventDefault();
+    const odds = parseFloat(f.odds.value), stake = parseFloat(f.stake.value);
+    if (!f.match.value.trim() || !(odds > 1) || !(stake > 0)) { toast('Maç, 1\'den büyük oran ve miktar girin'); return; }
+    bets.unshift({ id: Date.now() + Math.random().toString(36).slice(2, 6), t: Date.now(), match: f.match.value.trim(), pick: f.pick.value.trim(), odds, stake, fair: parseFloat(f.fair.value) || null, status: 'open' });
+    Object.values(f).forEach(i => (i.value = '')); saveAll(); toast('Eklendi');
+  } },
+    h('b', {}, 'Elle bahis ekle'),
+    h('label', { class: 'lbl', for: 'bt-m' }, 'Maç', f.match), h('label', { class: 'lbl', for: 'bt-p' }, 'Seçim', f.pick),
+    h('div', { class: 'row' }, h('label', { class: 'lbl', for: 'bt-o' }, 'Oran', f.odds), h('label', { class: 'lbl', for: 'bt-s' }, 'Miktar (€)', f.stake)),
+    h('label', { class: 'lbl', for: 'bt-f' }, 'Gerçek oran (value bet tarayıcıdan)', f.fair),
+    h('button', { class: 'btn primary', type: 'submit' }, 'Ekle'));
+
+  const backup = h('textarea', { class: 'input', id: 'bt-backup', placeholder: 'Yedeği buraya yapıştırın' });
+  const tools = h('details', { class: 'card' }, h('summary', {}, 'Yedekleme'),
+    h('p', { class: 'small muted' }, 'Defter sadece bu telefondaki tarayıcıda saklanır. Safari verilerini silerseniz kaybolur; ara sıra yedeği kopyalayıp Notlar\'a yapıştırın.'),
+    h('button', { class: 'btn', onclick: () => copyText(JSON.stringify(bets)) }, 'Yedeği kopyala'),
+    h('label', { class: 'lbl', for: 'bt-backup' }, 'Yedekten geri yükle', backup),
+    h('button', { class: 'btn', onclick: () => { try { const d = JSON.parse(backup.value); if (!Array.isArray(d)) throw 0; bets = d; backup.value = ''; saveAll(); toast(d.length + ' bahis yüklendi'); } catch { toast('Yedek okunamadı'); } } }, 'Geri yükle'));
+
+  function draw() {
+    const settled = bets.filter(b => b.status === 'won' || b.status === 'lost');
+    const staked = settled.reduce((a, b) => a + b.stake, 0), profit = settled.reduce((a, b) => a + profitOf(b), 0);
+    const withFair = settled.filter(b => b.fair > 1);
+    const expected = withFair.reduce((a, b) => a + b.stake * (b.odds / b.fair - 1), 0);
+    const open = bets.filter(b => b.status === 'open');
+    const cv = h('canvas', { class: 'viz', width: 640, height: 200 });
+    statsBox.replaceChildren(...[
+      h('div', { class: 'lcd' }, h('div', { class: 'xl' }, (profit >= 0 ? '+' : '') + eur(profit)), h('div', {}, 'getiri ' + (staked ? pct(profit / staked) : '—') + ' · ' + settled.length + ' bahis')),
+      h('div', { class: 'nums' },
+        h('div', {}, h('span', {}, 'Yatırılan'), h('b', {}, eur(staked))),
+        h('div', {}, h('span', {}, 'İsabet'), h('b', {}, settled.length ? num(settled.filter(b => b.status === 'won').length / settled.length * 100, 0) + ' %' : '—')),
+        h('div', {}, h('span', {}, 'Açık'), h('b', {}, open.length + ' · ' + eur(open.reduce((a, b) => a + b.stake, 0))))),
+      withFair.length ? h('p', { class: 'small muted' }, 'Value bet hesabına göre beklenen kâr: ' + (expected >= 0 ? '+' : '') + eur(expected) + '. Gerçek sonuç kısa vadede bundan çok sapabilir; ' + (settled.length < 300 ? 'yaklaşık 300 bahisten önce kesin yargıya varmayın.' : 'artık anlamlı bir örnekleminiz var.')) : null,
+      settled.length > 1 ? cv : null].filter(Boolean));
+    if (settled.length > 1) {
+      const g = cv.getContext('2d'), W = cv.width, H = cv.height, pts = [0];
+      [...settled].reverse().forEach(b => pts.push(pts[pts.length - 1] + profitOf(b)));
+      const mx = Math.max(...pts, 1), mn = Math.min(...pts, -1), y = v => H - 16 - (v - mn) / (mx - mn) * (H - 32);
+      g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+      g.strokeStyle = '#332d26'; g.beginPath(); g.moveTo(0, y(0)); g.lineTo(W, y(0)); g.stroke();
+      g.strokeStyle = '#ff8200'; g.lineWidth = 3; g.beginPath();
+      pts.forEach((v, i) => { const x = 8 + i / (pts.length - 1) * (W - 16); i ? g.lineTo(x, y(v)) : g.moveTo(x, y(v)); }); g.stroke();
+      g.fillStyle = '#a1978b'; g.font = '18px monospace'; g.fillText('0 €', 6, y(0) - 6);
+    }
+    listBox.replaceChildren(...(bets.length ? bets.map(b => {
+      const p = profitOf(b);
+      const set = s => () => { b.status = s; saveAll(); };
+      return h('div', { class: 'card', style: 'gap:8px' },
+        h('div', { class: 'head', style: 'display:flex;justify-content:space-between;gap:8px' }, h('b', { style: 'overflow-wrap:anywhere' }, b.match),
+          h('span', { class: 'pill' }, { open: 'açık', won: 'kazandı', lost: 'kaybetti', void: 'iade' }[b.status])),
+        h('div', { class: 'small' }, (b.pick ? b.pick + ' · ' : '') + 'oran ' + num(b.odds) + ' · ' + eur(b.stake) + (b.fair ? ' · gerçek ' + num(b.fair) : '')),
+        b.status === 'open'
+          ? h('div', { class: 'row' }, h('button', { class: 'btn', onclick: set('won') }, 'Kazandı'), h('button', { class: 'btn', onclick: set('lost') }, 'Kaybetti'), h('button', { class: 'btn', onclick: set('void') }, 'İade'))
+          : h('div', { class: 'row', style: 'align-items:center' }, h('span', { class: p > 0 ? 'pos' : p < 0 ? 'neg' : 'muted', style: 'font-family:var(--font-mono)' }, (p > 0 ? '+' : '') + eur(p)), h('button', { class: 'btn', style: 'flex:0 0 auto', onclick: set('open') }, 'Geri al')),
+        h('button', { class: 'copy', style: 'justify-self:start', onclick: () => { bets = bets.filter(x => x !== b); saveAll(); } }, 'Sil'));
+    }) : [h('div', { class: 'note' }, 'Henüz bahis yok. Value bet tarayıcıda "Oynadım, deftere ekle" ile ya da aşağıdan elle ekleyin.')]));
+  }
+  main.append(statsBox, h('h2', {}, 'Bahisler'), listBox, form, tools);
+  draw();
 }
 
 // ---------- boot ----------
