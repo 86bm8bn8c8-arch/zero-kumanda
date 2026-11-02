@@ -94,6 +94,7 @@ p { margin: 0; }
   min-height: 46px; padding: 10px 14px; border-radius: 11px;
   border: 1px solid var(--line); background: var(--panel-2); font-weight: 500;
 }
+a.btn { text-decoration: none; color: inherit; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 .btn.block { width: 100%; }
 .btn:disabled { opacity: .45; }
@@ -292,6 +293,10 @@ const ICON = {
   lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3M12 14v3"/>',
   bank: '<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18"/>',
   braces: '<path d="M8 3H7a2 2 0 00-2 2v4l-2 3 2 3v4a2 2 0 002 2h1M16 3h1a2 2 0 012 2v4l2 3-2 3v4a2 2 0 01-2 2h-1"/>',
+  plane: '<path d="M10.5 21l1.5-1 1.5 1v-2l-1.5-1.5V14l8 3v-2l-8-5V4.5a1.5 1.5 0 00-3 0V10l-8 5v2l8-3v3.5L9 19v2z"/>',
+  train: '<rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M9 21l-2-4M15 21l2-4"/><circle cx="9" cy="14" r=".8"/><circle cx="15" cy="14" r=".8"/>',
+  letter: '<path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4M8 12h8M8 16h5"/>',
+  euro: '<path d="M18 6.5A7 7 0 106.7 16M4 10h9M4 14h8"/><path d="M18 17.5A7 7 0 016.7 16"/>',
   radio: '<path d="M4.9 19.1a10 10 0 010-14.2M19.1 4.9a10 10 0 010 14.2M8 16a5 5 0 010-8M16 8a5 5 0 010 8"/><circle cx="12" cy="12" r="1.5"/>',
 };
 const icon = n => h('span', { class: 'ic', html: '<svg viewBox="0 0 24 24">' + ICON[n] + '</svg>' });
@@ -323,7 +328,7 @@ let cleanup = null;
 function route() {
   if (cleanup) { try { cleanup(); } catch {} cleanup = null; }
   const id = location.hash.slice(1);
-  const tool = [...SEC, ...MONEY, ...DAILY, ...TOOLS].find(t => t.id === id);
+  const tool = [...HACKS, ...SEC, ...MONEY, ...DAILY, ...TOOLS].find(t => t.id === id);
   const main = $('#main');
   main.replaceChildren();
   window.scrollTo(0, 0);
@@ -338,6 +343,8 @@ function renderMenu(main) {
     h('div', { class: 'hero' },
       h('div', { class: 'big' }, 'Telefonundaki araç kutusu'),
       h('p', { class: 'muted small' }, 'Flipper tarzı araçlar, sadece iPhone\'un kendi donanımıyla: kamera, mikrofon, hoparlör, hareket sensörleri, GPS ve Bluetooth.')),
+    h('h2', {}, 'Hayat hackleri'),
+    h('div', { class: 'menu' }, HACKS.map(menuItem)),
     h('h2', {}, 'Güvenlik'),
     h('div', { class: 'menu' }, SEC.map(menuItem)),
     h('h2', {}, 'Para'),
@@ -1923,6 +1930,257 @@ function mountDev(main) {
   main.append(segCtl([['json', 'JSON'], ['jwt', 'JWT'], ['zaman', 'Unix'], ['uuid', 'UUID']], 'json', show), body);
   show('json');
   return () => clearInterval(clock);
+}
+
+// ---------- Hayat hackleri (Almanya) ----------
+const HACKS = [
+  { id: 'ucak', icon: 'plane', name: 'Uçak tazminatı', desc: 'Gecikme/iptalde 250–600 € al, talep mektubu hazır', mount: mountFlight },
+  { id: 'tren', icon: 'train', name: 'Tren tazminatı (DB)', desc: 'Gecikmede bilet parasının %25–50\'si geri', mount: mountTrain },
+  { id: 'mektup', icon: 'letter', name: 'Almanca mektup yazıcı', desc: 'Kündigung, iade, DSGVO veri talebi, reklam yasağı', mount: mountLetters },
+  { id: 'vergi', icon: 'euro', name: 'Vergi iadesi tahmini', desc: 'Yol, home office, iş eşyası: devletten ne geri gelir', mount: mountTax },
+];
+const deDate = (d = new Date()) => d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+function letterOut() {
+  let text = '', subject = '';
+  const o = out('Mektup (Almanca)', '');
+  const mail = h('a', { class: 'btn' }, 'E-postada aç');
+  const box = h('div', { style: 'display:grid;gap:8px' }, o,
+    h('div', { class: 'row' }, navigator.share ? h('button', { class: 'btn', onclick: () => navigator.share({ title: subject, text }).catch(() => {}) }, 'Paylaş') : '', mail));
+  box.set = (t, s) => { text = t; subject = s; o.set(t); mail.href = 'mailto:?subject=' + encodeURIComponent(s) + '&body=' + encodeURIComponent(t); };
+  return box;
+}
+const field = (id, label, attrs = {}) => { const i = h('input', { class: 'input', id, type: 'text', ...attrs }); return [i, h('label', { class: 'lbl', for: id }, label, i)]; };
+
+// --- Uçak (AB 261/2004) ---
+const AIRPORTS = [
+  ['FRA', 'Frankfurt', 50.0379, 8.5622, 1], ['MUC', 'München', 48.3538, 11.7861, 1], ['BER', 'Berlin', 52.3667, 13.5033, 1], ['DUS', 'Düsseldorf', 51.2895, 6.7668, 1],
+  ['HAM', 'Hamburg', 53.6304, 9.9882, 1], ['CGN', 'Köln/Bonn', 50.8659, 7.1427, 1], ['STR', 'Stuttgart', 48.6899, 9.2220, 1], ['HAJ', 'Hannover', 52.4611, 9.6851, 1],
+  ['NUE', 'Nürnberg', 49.4987, 11.0669, 1], ['LEJ', 'Leipzig/Halle', 51.4239, 12.2364, 1], ['DTM', 'Dortmund', 51.5183, 7.6122, 1], ['BRE', 'Bremen', 53.0475, 8.7867, 1],
+  ['FMM', 'Memmingen', 47.9888, 10.2395, 1], ['HHN', 'Frankfurt-Hahn', 49.9487, 7.2639, 1], ['NRN', 'Weeze', 51.6024, 6.1422, 1], ['FKB', 'Karlsruhe/Baden', 48.7794, 8.0805, 1],
+  ['IST', 'İstanbul', 41.2753, 28.7519, 2], ['SAW', 'İstanbul Sabiha Gökçen', 40.8986, 29.3092, 2], ['ESB', 'Ankara', 40.1281, 32.9951, 2], ['ADB', 'İzmir', 38.2924, 27.1570, 2],
+  ['AYT', 'Antalya', 36.8987, 30.8005, 2], ['DLM', 'Dalaman', 36.7131, 28.7925, 2], ['BJV', 'Bodrum', 37.2506, 27.6643, 2], ['ADA', 'Adana', 36.9822, 35.2804, 2],
+  ['GZT', 'Gaziantep', 36.9472, 37.4787, 2], ['KYA', 'Konya', 37.9790, 32.5619, 2], ['ASR', 'Kayseri', 38.7704, 35.4954, 2], ['SZF', 'Samsun', 41.2545, 36.5671, 2],
+  ['TZX', 'Trabzon', 40.9951, 39.7897, 2], ['DIY', 'Diyarbakır', 37.8939, 40.2010, 2], ['ERZ', 'Erzurum', 39.9565, 41.1702, 2], ['MLX', 'Malatya', 38.4353, 38.0910, 2],
+  ['VAN', 'Van', 38.4682, 43.3323, 2], ['HTY', 'Hatay', 36.3628, 36.2823, 2], ['GZP', 'Alanya-Gazipaşa', 36.2992, 32.3006, 2],
+  ['AMS', 'Amsterdam', 52.3105, 4.7683, 1], ['CDG', 'Paris', 49.0097, 2.5479, 1], ['VIE', 'Viyana', 48.1103, 16.5697, 1], ['ZRH', 'Zürih', 47.4582, 8.5555, 1],
+  ['BCN', 'Barselona', 41.2974, 2.0833, 1], ['MAD', 'Madrid', 40.4983, -3.5676, 1], ['PMI', 'Mallorca', 39.5517, 2.7388, 1], ['FCO', 'Roma', 41.8003, 12.2389, 1],
+  ['ATH', 'Atina', 37.9364, 23.9445, 1], ['LIS', 'Lizbon', 38.7742, -9.1342, 1], ['CPH', 'Kopenhag', 55.6180, 12.6508, 1], ['PRG', 'Prag', 50.1008, 14.2600, 1],
+  ['WAW', 'Varşova', 52.1657, 20.9671, 1], ['BUD', 'Budapeşte', 47.4369, 19.2556, 1], ['TFS', 'Tenerife', 28.0445, -16.5725, 1], ['HER', 'Girit (Heraklion)', 35.3397, 25.1803, 1],
+  ['LHR', 'Londra', 51.4700, -0.4543, 3], ['HRG', 'Hurgada', 27.1783, 33.7994, 0], ['CAI', 'Kahire', 30.1219, 31.4056, 0], ['DXB', 'Dubai', 25.2532, 55.3657, 0],
+  ['DOH', 'Doha', 25.2731, 51.6081, 0], ['BKK', 'Bangkok', 13.6900, 100.7501, 0], ['JFK', 'New York', 40.6413, -73.7781, 0], ['TBS', 'Tiflis', 41.6692, 44.9547, 0],
+  ['GYD', 'Bakü', 40.4675, 50.0467, 0], ['PRN', 'Priştine', 42.5728, 21.0358, 0], ['SJJ', 'Saraybosna', 43.8246, 18.3315, 0], ['SKP', 'Üsküp', 41.9616, 21.6214, 0],
+];
+const gcKm = (a, b) => {
+  const r = x => x * Math.PI / 180, dLat = r(b[2] - a[2]), dLon = r(b[3] - a[3]);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(r(a[2])) * Math.cos(r(b[2])) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(s));
+};
+function flightClaim({ from, to, euCarrier, kind, delayH, notice, extraordinary }) {
+  const a = AIRPORTS.find(x => x[0] === from), b = AIRPORTS.find(x => x[0] === to);
+  if (!a || !b || a === b) return null;
+  const km = gcKm(a, b), intraEU = a[4] === 1 && b[4] === 1;
+  const covered = a[4] === 1 || (b[4] === 1 && euCarrier);
+  let amount = km <= 1500 ? 250 : (intraEU || km <= 3500) ? 400 : 600;
+  const finds = [['info', a[1] + ' → ' + b[1] + ': yaklaşık ' + Math.round(km).toLocaleString('tr-TR') + ' km']];
+  if (!covered) return { amount: 0, km, finds: [...finds, ['bad', 'AB kuralı (261/2004) bu uçuşa uygulanmaz: kalkış AB dışından ve havayolu AB şirketi değil.'],
+    a[4] === 2 ? ['info', 'Türkiye\'den kalkışta Türkiye\'nin SHY-YOLCU yönetmeliği geçerli: gecikme ve iptalde yemek, otel, bilet iadesi hakkın var; iptal/overbooking\'de 100–600 € tazminat da olabilir. Havayoluna yaz, cevap vermezse SHGM\'ye şikâyet et.'] :
+    a[4] === 3 ? ['info', 'İngiltere\'den kalkışta İngiltere\'nin UK261 kuralı geçerli: 3+ saat gecikmede £220–520 tazminat. Havayoluna aynı şekilde başvur.'] :
+    ['info', 'Kalkış ülkesinin kendi yolcu hakları geçerli olabilir; havayoluna sor.']] };
+  finds.push(['ok', a[4] === 1 ? 'Kalkış AB/AEA\'dan: hangi havayolu olursa olsun kural geçerli.' : 'AB havayolu ile AB\'ye geliş: kural geçerli.']);
+  if (kind === 'delay') {
+    if (delayH < 3) return { amount: 0, km, finds: [...finds, ['bad', 'Varışta gecikme 3 saatten azsa para tazminatı yok. Ama 2 saatten fazla beklediysen havayolu yemek/içecek vermek zorundaydı; fişlerini sakla.']] };
+    if (km > 3500 && !intraEU && delayH < 4) { amount /= 2; finds.push(['warn', '3500 km üstü uçuşta 3–4 saat gecikme: tazminat yarıya iner.']); }
+    finds.push(['ok', 'Varışta ' + delayH + ' saat gecikme: tazminat hakkı var. Önemli olan uçağın kapısının açıldığı saat.']);
+  } else if (kind === 'cancel') {
+    if (notice >= 14) return { amount: 0, km, finds: [...finds, ['bad', 'İptal 14 günden önce bildirildiyse tazminat yok; ama bilet parasının tamamını geri isteyebilirsin.']] };
+    finds.push(['ok', 'İptal 14 günden kısa süre önce bildirildi: tazminat hakkı var (alternatif uçuş çok yakın saatteyse düşebilir). Ayrıca bilet iadesi ya da ücretsiz yeni uçuş hakkın var.']);
+  } else finds.push(['ok', 'Overbooking yüzünden uçağa alınmadın: tazminat hakkı var.']);
+  if (extraordinary) finds.push(['warn', 'Kötü hava, hava trafik kontrolü veya havalimanı personeli grevi "olağanüstü durum" sayılır; havayolu ödemeyi reddedebilir. Havayolunun kendi personelinin grevi ve teknik arıza olağanüstü DEĞİLDİR.']);
+  finds.push(['info', 'Almanya\'da talep süresi 3 yıl (uçuş yılının sonundan itibaren). Yani geçmiş uçuşlarını da kontrol et.']);
+  return { amount, km, finds };
+}
+function mountFlight(main) {
+  const opts = () => AIRPORTS.map(([c, n]) => h('option', { value: c }, n + ' (' + c + ')'));
+  const from = h('select', { class: 'input', id: 'fl-from' }, opts()), to = h('select', { class: 'input', id: 'fl-to' }, opts());
+  from.value = 'DUS'; to.value = 'AYT';
+  const eu = h('input', { type: 'checkbox', id: 'fl-eu' }), ext = h('input', { type: 'checkbox', id: 'fl-ext' });
+  const [delay, delayL] = field('fl-delay', 'Varışta kaç saat gecikti?', { inputmode: 'decimal', value: '3,5' });
+  const [notice, noticeL] = field('fl-notice', 'İptal kaç gün önce bildirildi?', { inputmode: 'numeric', value: '0' });
+  noticeL.hidden = true;
+  const [fno, fnoL] = field('fl-no', 'Uçuş no', { placeholder: 'ör. XQ123', autocapitalize: 'characters' });
+  const [fdate, fdateL] = field('fl-date', 'Uçuş tarihi', { type: 'date' });
+  const [bk, bkL] = field('fl-bk', 'Rezervasyon kodu', { placeholder: 'ör. ABC12D', autocapitalize: 'characters' });
+  const [nm, nmL] = field('fl-name', 'Adın soyadın', { autocapitalize: 'words' });
+  const [iban, ibanL] = field('fl-iban', 'IBAN (ödeme için)', { class: 'input mono', autocapitalize: 'characters' });
+  let kind = 'delay';
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const lo = letterOut();
+  const letter = h('div', { style: 'display:grid;gap:12px' }, h('h2', {}, 'Talep mektubu'), fnoL, fdateL, bkL, nmL, ibanL, lo,
+    h('div', { class: 'note' }, h('span', {}, 'Mektubu havayolunun web sitesindeki iletişim/tazminat formuna yapıştır ya da e-postayla gönder. Biniş kartı ve rezervasyon onayını ekle.'), h('span', {}, '14 günde ödemezlerse ücretsiz tahkim kurumu söp\'e (soep-online.de) başvur. Avukat/aracı şirketlere %20–35 komisyon vermene gerek yok.')));
+  let amount = 0;
+  function writeLetter() {
+    const why = { delay: 'die Ankunft am Endziel verspätete sich um ' + (delay.value || '?') + ' Stunden', cancel: 'der Flug wurde annulliert (Mitteilung ' + (notice.value || '0') + ' Tage vorher)', deny: 'mir wurde die Beförderung wegen Überbuchung verweigert' }[kind];
+    const N = nm.value || '[Name]';
+    const text = `${N}\n\nBetreff: Ausgleichszahlung nach Art. 7 Verordnung (EG) Nr. 261/2004 – Flug ${fno.value || '[Flugnummer]'} am ${fdate.value ? deDate(new Date(fdate.value)) : '[Datum]'}, Buchungscode ${bk.value || '[Code]'}\n\nSehr geehrte Damen und Herren,\n\nich war Passagier des oben genannten Fluges von ${from.value} nach ${to.value}. ${why.charAt(0).toUpperCase() + why.slice(1)}.\n\nGemäß Art. 5, 6 und 7 der Verordnung (EG) Nr. 261/2004 sowie der Rechtsprechung des EuGH (C-402/07, C-432/07) steht mir eine Ausgleichszahlung in Höhe von ${amount} EUR zu. Außergewöhnliche Umstände, die Sie entlasten könnten, sind mir nicht bekannt; sollten Sie sich darauf berufen, bitte ich um konkreten Nachweis.\n\nBitte überweisen Sie den Betrag innerhalb von 14 Tagen auf folgendes Konto:\nIBAN: ${iban.value || '[IBAN]'}\nKontoinhaber: ${N}\n\nSollte innerhalb dieser Frist keine Zahlung erfolgen, werde ich die Schlichtungsstelle für den öffentlichen Personenverkehr (söp) einschalten bzw. rechtliche Schritte einleiten.\n\nMit freundlichen Grüßen\n${N}\n${deDate()}`;
+    lo.set(text, 'Ausgleichszahlung Flug ' + (fno.value || ''));
+  }
+  function calc() {
+    const r = flightClaim({ from: from.value, to: to.value, euCarrier: eu.checked, kind, delayH: parseNum(delay.value) || 0, notice: parseNum(notice.value) || 0, extraordinary: ext.checked });
+    if (!r) { letter.hidden = true; return res.replaceChildren(h('p', { class: 'err' }, 'Kalkış ve varış farklı olmalı.')); }
+    amount = r.amount;
+    res.replaceChildren(h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Yolcu başı tazminat'), h('div', { class: 'xl' }, r.amount + ' €')), findList(r.finds));
+    letter.hidden = !r.amount;
+    writeLetter();
+  }
+  [fno, fdate, bk, nm, iban].forEach(i => i.addEventListener('input', writeLetter));
+  [from, to, eu, ext].forEach(i => i.addEventListener('change', calc));
+  [delay, notice].forEach(i => i.addEventListener('input', calc));
+  main.append(
+    h('div', { class: 'row' }, h('label', { class: 'lbl', for: 'fl-from' }, 'Kalkış', from), h('label', { class: 'lbl', for: 'fl-to' }, 'Varış', to)),
+    h('label', { class: 'chk', for: 'fl-eu' }, eu, 'Havayolu AB şirketi (Lufthansa, Eurowings, Condor, Ryanair…)'),
+    h('div', { class: 'lbl' }, 'Ne oldu?', segCtl([['delay', 'Gecikme'], ['cancel', 'İptal'], ['deny', 'Overbooking']], 'delay', v => { kind = v; delayL.hidden = v !== 'delay'; noticeL.hidden = v !== 'cancel'; calc(); })),
+    delayL, noticeL,
+    h('label', { class: 'chk', for: 'fl-ext' }, ext, 'Sebep hava durumu / hava trafiği / havalimanı grevi'),
+    res, letter);
+  calc();
+}
+
+// --- Tren (DB Fahrgastrechte) ---
+function mountTrain(main) {
+  const [price, priceL] = field('tr-price', 'Bilet fiyatı (€)', { inputmode: 'decimal', placeholder: 'ör. 79,90' });
+  const [delay, delayL] = field('tr-delay', 'Varışta kaç dakika gecikme?', { inputmode: 'numeric', value: '75' });
+  let ticket = 'normal';
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  function calc() {
+    const d = parseNum(delay.value) || 0, p = parseNum(price.value) || 0;
+    let amt = 0; const finds = [];
+    if (ticket === 'dt') {
+      amt = d >= 60 ? 1.5 : 0;
+      finds.push([d >= 60 ? 'ok' : 'bad', d >= 60 ? 'Deutschlandticket: her 60+ dakika gecikme için 1,50 €. Toplam en az 4 € birikince başvur (yani 3 gecikmeyi topla).' : '60 dakikadan az gecikmede tazminat yok.']);
+    } else {
+      const pct = d >= 120 ? 50 : d >= 60 ? 25 : 0;
+      amt = p * pct / 100;
+      if (!pct) finds.push(['bad', '60 dakikadan az gecikmede para iadesi yok.']);
+      else finds.push(['ok', d + ' dk gecikme: bilet fiyatının %' + pct + '\'i geri.'], amt < 4 ? ['warn', '4 €\'nun altındaki tutarlar ödenmez.'] : ['info', 'Gidiş-dönüş biletinde fiyatın yarısı üzerinden hesaplanır.']);
+      if (ticket === 'bc100') { amt = 0; finds.unshift(['warn', 'BahnCard 100: yıllık sabit tutarlar üzerinden ayrı hesaplanır, DB Navigator\'da göster.']); }
+    }
+    finds.push(['info', '20+ dakika gecikme bekleniyorsa bilet bağı (Zugbindung) kalkar: başka bir trene binebilirsin (aynı tren sınıfında).'],
+      ['info', 'Son tren iptal olduysa ya da gece 0–5 arası 60+ dk gecikmeyle varacaksan taksi/otel masrafı (taksi 120 €\'ya kadar) DB\'den geri istenebilir. Fişi sakla.'],
+      ['info', 'Başvuru: DB Navigator → Biletlerim → "Fahrgastrechte". Ya da bahn.de/fahrgastrechte. Süre: 1 yıl.']);
+    res.replaceChildren(h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Geri alacağın'), h('div', { class: 'xl' }, (amt >= 4 || ticket === 'dt' ? nf(amt) : nf(0)) + ' €')), findList(finds));
+  }
+  [price, delay].forEach(i => i.addEventListener('input', calc));
+  main.append(
+    h('div', { class: 'lbl' }, 'Bilet türü', segCtl([['normal', 'Normal bilet'], ['dt', 'Deutschlandticket'], ['bc100', 'BahnCard 100']], 'normal', v => { ticket = v; priceL.hidden = v !== 'normal'; calc(); })),
+    priceL, delayL, res,
+    h('div', { class: 'note' }, 'Kurallar AB yolcu hakları ve DB koşullarına göre özetlenmiştir; başvurmadan önce bahn.de\'deki güncel şartları kontrol et.'));
+  calc();
+}
+
+// --- Almanca mektup yazıcı ---
+const LETTERS = {
+  kuendigung: {
+    name: 'Sözleşme iptali (Kündigung)', tr: 'Spor salonu, telefon, internet, sigorta, dergi aboneliği… 1 Mart 2022\'den sonra yapılan sözleşmeler asgari süre bitince her ay 1 ay önceden iptal edilebilir. İnternetten yapılan sözleşmelerin sitesinde "Verträge hier kündigen" düğmesi olmak zorunda.',
+    fields: [['firma', 'Firma adı ve adresi'], ['vertrag', 'Sözleşme türü (ör. Mobilfunkvertrag)'], ['kdnr', 'Müşteri / sözleşme no']],
+    subject: f => 'Kündigung ' + (f.vertrag || 'meines Vertrags') + (f.kdnr ? ' – Kundennummer ' + f.kdnr : ''),
+    body: f => `hiermit kündige ich den oben genannten Vertrag (${f.vertrag || 'Vertrag'}, Kundennummer ${f.kdnr || '[Nummer]'}) fristgerecht zum nächstmöglichen Zeitpunkt.\n\nBitte senden Sie mir eine schriftliche Bestätigung der Kündigung unter Angabe des Beendigungszeitpunkts.\n\nEiner telefonischen Kontaktaufnahme zur Rückgewinnung widerspreche ich ausdrücklich. Eine mir erteilte Einzugsermächtigung (SEPA-Lastschriftmandat) widerrufe ich zum Vertragsende.`,
+  },
+  sonder: {
+    name: 'Zam yüzünden iptal (Sonderkündigung)', tr: 'Elektrik, gaz, telefon, internet firması fiyat artırırsa, artış yürürlüğe girmeden sözleşmeyi hemen iptal etme hakkın var (özel fesih hakkı). Daha ucuz firmaya geçmek için en iyi fırsat.',
+    fields: [['firma', 'Firma adı ve adresi'], ['vertrag', 'Sözleşme türü (ör. Stromvertrag)'], ['kdnr', 'Müşteri / sözleşme no'], ['datum', 'Zammın geçerli olacağı tarih']],
+    subject: f => 'Sonderkündigung wegen Preiserhöhung – Kundennummer ' + (f.kdnr || ''),
+    body: f => `Sie haben mir eine Preiserhöhung zum ${f.datum || '[Datum]'} angekündigt. Hiermit mache ich von meinem Sonderkündigungsrecht Gebrauch und kündige den Vertrag (${f.vertrag || 'Vertrag'}, Kundennummer ${f.kdnr || '[Nummer]'}) außerordentlich zum Zeitpunkt des Inkrafttretens der Preiserhöhung, hilfsweise zum nächstmöglichen Zeitpunkt.\n\nBitte bestätigen Sie mir die Kündigung und das Vertragsende schriftlich.`,
+  },
+  widerruf: {
+    name: 'Online alışveriş iadesi (Widerruf)', tr: 'İnternetten, telefonla veya kapıda alınan ürün/hizmetlerde 14 gün içinde sebep göstermeden cayma hakkın var. Süre ürün eline geçtiği gün başlar.',
+    fields: [['firma', 'Firma adı ve adresi'], ['ware', 'Ürün / hizmet'], ['bestnr', 'Sipariş no'], ['bestellt', 'Sipariş tarihi'], ['erhalten', 'Teslim tarihi']],
+    subject: f => 'Widerruf – Bestellnummer ' + (f.bestnr || ''),
+    body: f => `hiermit widerrufe ich den von mir abgeschlossenen Vertrag über den Kauf folgender Waren / die Erbringung folgender Dienstleistung:\n\n${f.ware || '[Ware]'}\nBestellnummer: ${f.bestnr || '[Nummer]'}\nBestellt am: ${f.bestellt || '[Datum]'} / erhalten am: ${f.erhalten || '[Datum]'}\n\nBitte erstatten Sie mir den Kaufpreis einschließlich der Hinsendekosten innerhalb von 14 Tagen gemäß § 357 BGB über dasselbe Zahlungsmittel, das ich verwendet habe.`,
+  },
+  auskunft: {
+    name: 'Hakkımdaki verileri ver (DSGVO Md. 15)', tr: 'Her firma, hakkında hangi veriyi tuttuğunu, nereden aldığını ve kime verdiğini 1 ay içinde ücretsiz söylemek zorunda. Spam arayan firmalar, Schufa, bankalar, uygulamalar için kullan.',
+    fields: [['firma', 'Firma adı ve adresi'], ['kdnr', 'Müşteri no / e-posta (varsa)']],
+    subject: () => 'Auskunftsersuchen nach Art. 15 DSGVO',
+    body: f => `ich ersuche Sie gemäß Art. 15 DSGVO um Auskunft, ob Sie mich betreffende personenbezogene Daten verarbeiten${f.kdnr ? ' (Kundennummer/E-Mail: ' + f.kdnr + ')' : ''}. Falls ja, bitte ich um:\n\n1. eine Kopie aller gespeicherten Daten (Art. 15 Abs. 3 DSGVO),\n2. die Verarbeitungszwecke,\n3. die Empfänger, an die die Daten weitergegeben wurden,\n4. die geplante Speicherdauer,\n5. die Herkunft der Daten, falls sie nicht bei mir erhoben wurden,\n6. Angaben zu automatisierten Entscheidungen einschließlich Profiling.\n\nIch erwarte Ihre Antwort innerhalb eines Monats (Art. 12 Abs. 3 DSGVO). Andernfalls behalte ich mir eine Beschwerde bei der zuständigen Datenschutzaufsichtsbehörde vor.`,
+  },
+  loeschung: {
+    name: 'Verilerimi sil + reklam yasağı (DSGVO Md. 17/21)', tr: 'Firmaya tüm verilerini silmesini ve sana reklam yapmayı bırakmasını yasal olarak emreder. Spam e-posta, reklam telefonları ve eski hesaplar için.',
+    fields: [['firma', 'Firma adı ve adresi'], ['kdnr', 'Müşteri no / e-posta / telefon']],
+    subject: () => 'Löschung meiner Daten (Art. 17 DSGVO) und Werbewiderspruch (Art. 21 DSGVO)',
+    body: f => `hiermit widerspreche ich gemäß Art. 21 Abs. 2 DSGVO jeglicher Verarbeitung meiner personenbezogenen Daten zu Werbezwecken und fordere Sie gemäß Art. 17 DSGVO auf, sämtliche über mich gespeicherten personenbezogenen Daten unverzüglich zu löschen${f.kdnr ? ' (betrifft: ' + f.kdnr + ')' : ''}. Sofern gesetzliche Aufbewahrungspflichten entgegenstehen, bitte ich um Einschränkung der Verarbeitung (Art. 18 DSGVO) und Mitteilung der Rechtsgrundlage.\n\nBitte bestätigen Sie mir die Löschung innerhalb eines Monats schriftlich. Einer Kontaktaufnahme per Telefon, E-Mail oder Post zu Werbezwecken widerspreche ich ausdrücklich.`,
+  },
+};
+function mountLetters(main) {
+  const type = h('select', { class: 'input', id: 'le-type' }, Object.entries(LETTERS).map(([k, v]) => h('option', { value: k }, v.name)));
+  const box = h('div', { style: 'display:grid;gap:12px' });
+  const me = {};
+  const [nm, nmL] = field('le-name', 'Adın soyadın', { autocapitalize: 'words' });
+  const [adr, adrL] = field('le-adr', 'Adresin (sokak, posta kodu, şehir)');
+  function render() {
+    const L = LETTERS[type.value], vals = {};
+    const inputs = L.fields.map(([k, label]) => { const [i, l] = field('le-' + k, label, { value: me[k] || '' }); i.addEventListener('input', () => (me[k] = i.value)); vals[k] = i; return l; });
+    const lo = letterOut();
+    const make = () => {
+      const f = Object.fromEntries(Object.entries(vals).map(([k, i]) => [k, i.value.trim()]));
+      const text = `${nm.value || '[Name]'}\n${adr.value || '[Adresse]'}\n\n${f.firma || '[Firma, Adresse]'}\n\n${deDate()}\n\nBetreff: ${L.subject(f)}\n\nSehr geehrte Damen und Herren,\n\n${L.body(f)}\n\nMit freundlichen Grüßen\n\n${nm.value || '[Name]'}`;
+      lo.set(text, L.subject(f));
+    };
+    Object.values(vals).forEach(i => i.addEventListener('input', make));
+    me.make = make;
+    box.replaceChildren(h('div', { class: 'note' }, L.tr), ...inputs, lo);
+    make();
+  }
+  [nm, adr].forEach(i => i.addEventListener('input', () => me.make()));
+  type.addEventListener('change', render);
+  main.append(h('label', { class: 'lbl', for: 'le-type' }, 'Mektup türü', type), nmL, adrL, box,
+    h('div', { class: 'note' }, h('span', {}, 'İpucu: E-posta yeterli olabilir ama iptal ve tazminat gibi önemli işlerde "Einwurf-Einschreiben" (Deutsche Post, ~2,65 €) ile gönder; ulaştığını kanıtlarsın.'), h('span', {}, 'Bilgiler sadece mektubu yazmak için kullanılır, hiçbir yere kaydedilmez.')));
+  render();
+}
+
+// --- Vergi iadesi tahmini ---
+function incomeTax2026(x) {
+  x = Math.floor(x);
+  if (x <= 12348) return 0;
+  if (x <= 17799) { const y = (x - 12348) / 10000; return (914.51 * y + 1400) * y; }
+  if (x <= 69878) { const z = (x - 17799) / 10000; return (173.10 * z + 2397) * z + 1034.87; }
+  if (x <= 277825) return 0.42 * x - 11135.63;
+  return 0.45 * x - 19470.38;
+}
+function mountTax(main) {
+  const F = {};
+  const mk = (id, label, val = '') => { const [i, l] = field('tx-' + id, label, { inputmode: 'decimal', value: val }); F[id] = i; return l; };
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  function calc() {
+    const v = k => Math.max(0, parseNum(F[k].value) || 0);
+    const brutto = v('brutto'), km = v('km'), office = Math.min(v('office'), 210), days = Math.min(v('days'), 230 - office);
+    const pendler = km * days * 0.38;
+    const ho = office * 6;
+    const wk = pendler + ho + v('items') + v('other') + 16;
+    const extra = Math.max(0, wk - 1230);
+    const zve = Math.max(0, brutto * 0.8 - 1230 - 36);
+    const tax = x => { const t = incomeTax2026(x); return t * (1 + (t > 20350 ? 0.055 : 0)); };
+    const back = tax(zve) - tax(Math.max(0, zve - extra));
+    const handwerk = Math.min(1200, v('hand') * 0.2);
+    const total = back + handwerk;
+    res.replaceChildren(
+      h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Tahmini iade'), h('div', { class: 'xl' }, '≈ ' + nf(total, 0) + ' €')),
+      h('div', { class: 'kv' }, kvRows([
+        ['Yol gideri (Pendlerpauschale)', nf(pendler, 0) + ' €'], ['Home office', nf(ho, 0) + ' €'], ['Toplam iş gideri', nf(wk, 0) + ' €'],
+        ['Otomatik indirim (1230 €) üstü', nf(extra, 0) + ' €'], ['Bundan vergi iadesi', nf(back, 0) + ' €'], ['Usta/tamir işçiliği (%20)', nf(handwerk, 0) + ' €']])),
+      findList([
+        extra > 0 ? ['ok', 'Giderlerin otomatik 1230 € indirimi geçiyor: beyanname vermek sana para kazandırır.'] : ['warn', 'İş giderlerin 1230 €\'yu geçmiyor; yine de yıl içinde iş değiştirdiysen, işsiz kaldıysan veya Kurzarbeit aldıysan iade çıkabilir.'],
+        ['info', 'Beyanname zorunlu değilse 4 yıl geriye dönük verebilirsin: 2026\'da 2022, 2023, 2024 ve 2025 yılları için hâlâ başvurabilirsin.'],
+        ['info', 'Ücretsiz: ELSTER (elster.de) resmi devlet sitesi. Ödemeli uygulamalar (WISO, Taxfix) gerekmez.'],
+        ['info', 'Unutulanlar: iş için telefon/internet (%20, ayda en fazla 20 €), iş ayakkabısı/kıyafeti, iş başvuru masrafları, iş için taşınma, sendika aidatı, hesap ücreti (16 € götürü).'],
+      ]));
+  }
+  main.append(
+    mk('brutto', 'Yıllık brüt maaş (€)', '36000'), mk('km', 'Ev–iş arası tek yön km', '15'), mk('days', 'İşe gittiğin gün sayısı (yıllık)', '200'),
+    mk('office', 'Evden çalıştığın gün sayısı', '0'), mk('items', 'İş eşyası (laptop, telefon payı, kıyafet…) €', '0'), mk('other', 'Diğer iş giderleri (kurs, başvuru, sendika…) €', '0'),
+    mk('hand', 'Evde usta/tamir/temizlik işçilik faturaları €', '0'), res,
+    h('div', { class: 'note' }, 'Kaba tahmindir (2026 vergi tarifesi, bekar, kilise vergisi yok). Kesin tutarı ELSTER hesaplar.'));
+  Object.values(F).forEach(i => i.addEventListener('input', calc));
+  calc();
 }
 
 // ---------- boot ----------
