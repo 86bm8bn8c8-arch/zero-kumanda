@@ -297,6 +297,9 @@ const ICON = {
   train: '<rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M9 21l-2-4M15 21l2-4"/><circle cx="9" cy="14" r=".8"/><circle cx="15" cy="14" r=".8"/>',
   letter: '<path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4M8 12h8M8 16h5"/>',
   euro: '<path d="M18 6.5A7 7 0 106.7 16M4 10h9M4 14h8"/><path d="M18 17.5A7 7 0 016.7 16"/>',
+  scan: '<path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3"/><path d="M8 9h8M8 12h8M8 15h5"/>',
+  house: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>',
+  hand: '<path d="M7 11V6.5a1.5 1.5 0 013 0V11M10 10V5a1.5 1.5 0 013 0v5M13 10V6a1.5 1.5 0 013 0v6"/><path d="M16 9.5a1.5 1.5 0 013 0V14a7 7 0 01-7 7h-1a6 6 0 01-5-2.7L3.5 14a1.5 1.5 0 012.5-1.7L7 14"/>',
   radio: '<path d="M4.9 19.1a10 10 0 010-14.2M19.1 4.9a10 10 0 010 14.2M8 16a5 5 0 010-8M16 8a5 5 0 010 8"/><circle cx="12" cy="12" r="1.5"/>',
 };
 const icon = n => h('span', { class: 'ic', html: '<svg viewBox="0 0 24 24">' + ICON[n] + '</svg>' });
@@ -1934,6 +1937,9 @@ function mountDev(main) {
 
 // ---------- Hayat hackleri (Almanya) ----------
 const HACKS = [
+  { id: 'mektup-coz', icon: 'scan', name: 'Resmi mektup çözücü', desc: 'Almanca mektubu fotoğrafla: kimden, ne istiyor, son tarih, ne yapmalı', mount: mountDecoder },
+  { id: 'kira', icon: 'house', name: 'Kira artışı yasal mı?', desc: 'Ev sahibinin zammını yasal sınırlarla karşılaştır', mount: mountRent },
+  { id: 'buergergeld', icon: 'hand', name: 'Bürgergeld / Aufstocken', desc: 'Çalışsan bile devletten ek para hakkın var mı', mount: mountBuergergeld },
   { id: 'ucak', icon: 'plane', name: 'Uçak tazminatı', desc: 'Gecikme/iptalde 250–600 € al, talep mektubu hazır', mount: mountFlight },
   { id: 'tren', icon: 'train', name: 'Tren tazminatı (DB)', desc: 'Gecikmede bilet parasının %25–50\'si geri', mount: mountTrain },
   { id: 'mektup', icon: 'letter', name: 'Almanca mektup yazıcı', desc: 'Kündigung, iade, DSGVO veri talebi, reklam yasağı', mount: mountLetters },
@@ -2180,6 +2186,326 @@ function mountTax(main) {
     mk('hand', 'Evde usta/tamir/temizlik işçilik faturaları €', '0'), res,
     h('div', { class: 'note' }, 'Kaba tahmindir (2026 vergi tarifesi, bekar, kilise vergisi yok). Kesin tutarı ELSTER hesaplar.'));
   Object.values(F).forEach(i => i.addEventListener('input', calc));
+  calc();
+}
+
+// ---------- Resmi mektup çözücü ----------
+const DE_MONTHS = { januar: 1, februar: 2, märz: 3, maerz: 3, april: 4, mai: 5, juni: 6, juli: 7, august: 8, september: 9, oktober: 10, november: 11, dezember: 12 };
+const NUMWORD = { ein: 1, eine: 1, einer: 1, einem: 1, eines: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, sechs: 6, sieben: 7, acht: 8, zehn: 10, vierzehn: 14, einundzwanzig: 21, dreißig: 30 };
+function findDates(t) {
+  const out = [];
+  const re1 = /\b(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4}|\d{2})\b/g, re2 = /\b(\d{1,2})\.\s*(januar|februar|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)\s+(\d{4})/gi;
+  let m;
+  while ((m = re1.exec(t))) { const y = +m[3] < 100 ? 2000 + +m[3] : +m[3], d = new Date(y, +m[2] - 1, +m[1]); if (d.getDate() === +m[1] && y > 1990 && y < 2100) out.push({ d, i: m.index, s: m[0] }); }
+  while ((m = re2.exec(t))) out.push({ d: new Date(+m[3], DE_MONTHS[m[2].toLowerCase()] - 1, +m[1]), i: m.index, s: m[0] });
+  return out.sort((a, b) => a.i - b.i);
+}
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const addMonths = (d, n) => { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; };
+const trDate = d => d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+const daysLeft = d => Math.ceil((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(new Date().toDateString())) / 86400000);
+
+const LETTER_TYPES = [
+  { id: 'mahnbescheid', re: /mahnbescheid|vollstreckungsbescheid/i, name: 'Mahkeme ödeme emri (Mahnbescheid)', risk: 'bad', days: 14,
+    what: 'Mahkeme (Amtsgericht) üzerinden gelen resmi ödeme emri. Mahkeme borcun gerçek olup olmadığını KONTROL ETMEZ. 2 hafta içinde itiraz etmezsen alacaklı icra (haciz) başlatabilir, borç uydurma olsa bile.',
+    todo: ['Borç gerçek mi, tutar doğru mu kontrol et.', 'Değilse: zarftaki "Widerspruch" formunda kutuyu işaretle, imzala, 2 hafta içinde mahkemeye gönder (gerekçe yazmak zorunda değilsin).', '"Vollstreckungsbescheid" yazıyorsa bu ikinci aşamadır: yine 2 hafta içinde "Einspruch" et.', 'Ücretsiz yardım: Verbraucherzentrale veya Schuldnerberatung (Caritas, Diakonie).'], reply: 'widerspruch_mb' },
+  { id: 'vollstreckung', re: /gerichtsvollzieher|pfändungs|kontopfändung|vermögensauskunft|vollstreckungsankündigung/i, name: 'İcra / haciz', risk: 'bad',
+    what: 'Borç icra aşamasında: icra memuru (Gerichtsvollzieher) veya hesap haczi söz konusu.',
+    todo: ['Hemen ücretsiz borç danışmanlığına git (Schuldnerberatung: Caritas, Diakonie, AWO, belediye).', 'Hesabını bankada P-Konto\'ya çevirt (ücretsiz hak): aylık yaklaşık 1.560 € hacizden korunur.', 'Taksit teklif et (Ratenzahlung) – icra memuru taksite izin verebilir.', 'Randevuya gitmemek veya mektubu yok saymak durumu kötüleştirir.'] },
+  { id: 'inkasso', re: /inkasso/i, name: 'Inkasso (borç tahsil şirketi)', risk: 'warn',
+    what: 'Bir şirket, başka bir firmanın alacağını senden tahsil etmeye çalışıyor. Sahte Inkasso mektupları çok yaygın.',
+    todo: ['Asıl alacaklı kim, borç neyden doğmuş? Bilmiyorsan ÖDEME.', 'Gerçek şirket mi: adını rechtsdienstleistungsregister.de\'de ara. Kayıtlı değilse sahte.', 'Borcu tanımıyorsan yazılı itiraz et (aşağıdaki "Cevap mektubu").', 'Borç gerçekse asıl borcu öde; aşırı ücretlere (Inkassogebühren) itiraz edebilirsin.'], reply: 'bestreiten' },
+  { id: 'mahnung', re: /\bmahnung|zahlungserinnerung|zahlungsaufforderung|letzte mahnung/i, name: 'Ödeme hatırlatması / ihtar (Mahnung)', risk: 'warn',
+    what: 'Ödenmemiş bir fatura için hatırlatma. Ödemezsen Inkasso ve mahkeme ödeme emri gelebilir.',
+    todo: ['Faturayı bul, gerçekten ödenmemiş mi kontrol et (hesap dökümü).', 'Ödediysen dekontu gönder. Hatalıysa yazılı itiraz et.', 'Ödeyemiyorsan taksit iste – çoğu firma kabul eder.'], reply: 'bestreiten' },
+  { id: 'strafbefehl', re: /strafbefehl/i, name: 'Ceza emri (Strafbefehl)', risk: 'bad', days: 14,
+    what: 'Mahkemenin duruşmasız verdiği ceza kararı. 2 hafta içinde itiraz edilmezse kesinleşir ve sabıka kaydına girebilir.',
+    todo: ['Hemen bir avukata danış (ücretsiz/ucuz: Beratungshilfeschein, Amtsgericht\'ten alınır).', 'İtiraz (Einspruch) 2 hafta içinde mahkemeye yazılı yapılmalı.'], reply: 'einspruch' },
+  { id: 'polizei', re: /vorladung|beschuldigte|ermittlungsverfahren|staatsanwaltschaft/i, name: 'Polis / savcılık', risk: 'bad',
+    what: 'Hakkında soruşturma var veya ifadeye çağrılıyorsun.',
+    todo: ['Şüpheli olarak polise gitmek ZORUNDA DEĞİLSİN ve ifade vermek zorunda değilsin. Önce avukatla konuş.', 'Savcılık çağırıyorsa gitmek zorunlu; yine avukat önerilir.', 'Hiçbir şey imzalama, açıklama yapma; sadece kimlik bilgilerini ver.'] },
+  { id: 'bussgeld', re: /bußgeld|bussgeld|anhörungsbogen|verwarnungsgeld|ordnungswidrigkeit|zeugenfragebogen/i, name: 'Trafik / para cezası', risk: 'warn', days: 14,
+    what: 'Trafik cezası veya kabahat. "Anhörungsbogen" savunma formu, "Bußgeldbescheid" kesin ceza kararıdır.',
+    todo: ['Anhörungsbogen: Sürücünün kim olduğunu söylemek zorunda değilsin (kendin veya yakın akraban ise). Sadece kişisel bilgilerini doldurman yeterli.', 'Bußgeldbescheid: hatalıysa 2 hafta içinde itiraz (Einspruch). Fotoğraf net değilse, ölçüm hatalıysa itiraz şansın var.', '60 € üstü ceza Flensburg\'da puan demek. 8 puanda ehliyet gider.', 'Kabul ediyorsan Kassenzeichen ile zamanında öde.'], reply: 'einspruch' },
+  { id: 'finanzamt', re: /finanzamt|steuerbescheid|einkommensteuer|steuer-id|steuernummer/i, name: 'Vergi dairesi (Finanzamt)', risk: 'warn', months: 1,
+    what: 'Vergi kararı, beyanname isteği veya ödeme talebi.',
+    todo: ['Steuerbescheid ise: hesaplanan ile beyan ettiğin tutarı karşılaştır.', 'Hata varsa 1 ay içinde Einspruch et (ELSTER\'den de olur). Gerekçeyi sonra da yazabilirsin.', '"Erstattung" yazıyorsa para sana geri geliyor; "Nachzahlung" ise sen ödüyorsun.', 'Ödeme varsa vadeyi kaçırma: her ay %1 gecikme zammı (Säumniszuschlag).'], reply: 'einspruch' },
+  { id: 'jobcenter', re: /jobcenter|bürgergeld|grundsicherung|agentur für arbeit|arbeitslosengeld|meldetermin/i, name: 'Jobcenter / İş ajansı', risk: 'warn', months: 1,
+    what: 'Yardım kararı, randevu (Meldetermin), belge isteği veya geri ödeme talebi.',
+    todo: ['Randevu (Einladung/Meldetermin) varsa MUTLAKA git; gidemiyorsan önceden ara ve rapor/sebep belgesi ver, yoksa kesinti (Leistungsminderung) olur.', 'Belge istiyorlarsa (Mitwirkung) son tarihe kadar gönder; fotokopi gönder, aslını değil. Gönderdiğini kanıtla (makbuz/Einwurf-Einschreiben).', 'Karar yanlışsa 1 ay içinde Widerspruch et. Gerekçe sonra gelebilir.', 'Ücretsiz yardım: Sozialberatung, Erwerbslosenberatung.'], reply: 'widerspruch' },
+  { id: 'auslaender', re: /ausländerbehörde|auslaenderbehoerde|aufenthaltstitel|aufenthaltserlaubnis|niederlassungserlaubnis|fiktionsbescheinigung|einbürgerung|einbuergerung/i, name: 'Yabancılar dairesi (Ausländerbehörde)', risk: 'bad',
+    what: 'Oturum izni, uzatma, vatandaşlık veya bilgi talebi. Süreleri kaçırmak oturumunu riske atar.',
+    todo: ['İstenen belgeleri son tarihe kadar eksiksiz ver.', 'Oturum iznin bitmeden ÖNCE uzatma başvurusu yap; geç kalırsan "Fiktionsbescheinigung" iste.', 'Ret veya sınır dışı kararı varsa hemen göçmenlik avukatına veya Migrationsberatung\'a (ücretsiz) git.'] },
+  { id: 'rundfunk', re: /beitragsservice|rundfunkbeitrag|ard zdf/i, name: 'TV-radyo vergisi (Rundfunkbeitrag)', risk: 'warn',
+    what: 'Her ev (kişi değil!) için ayda 18,36 €. TV\'n olmasa bile ödenir.',
+    todo: ['Evde başka biri zaten ödüyorsa ikinci kez ödeme: onun Beitragsnummer\'ini rundfunkbeitrag.de\'ye "Wohnung bereits angemeldet" olarak bildir.', 'Bürgergeld, BAföG, Wohngeld (bazı durumlar) alıyorsan muafiyet (Befreiung) başvurusu yap.', 'Yok sayma: tutar birikir ve icra gelir.'] },
+  { id: 'kuendigung_job', re: /kündig[\s\S]{0,400}(arbeitsverhältnis|arbeitsvertrag)|(arbeitsverhältnis|arbeitsvertrag)[\s\S]{0,400}kündig/i, name: 'İşten çıkarılma (Kündigung)', risk: 'bad', days: 21,
+    what: 'İşveren iş sözleşmesini feshediyor. Haksızsa sadece 3 hafta içinde dava açabilirsin.',
+    todo: ['3 gün içinde Agentur für Arbeit\'a "arbeitssuchend" kaydol, yoksa işsizlik parasında 1 hafta kesinti (Sperrzeit).', 'Fesih haksız olabilir (6 aydan uzun çalıştın ve 10+ çalışan varsa): 3 hafta içinde Arbeitsgericht\'e Kündigungsschutzklage. Sendika üyesiysen ücretsiz avukat.', 'Aufhebungsvertrag (karşılıklı fesih) imzalama: işsizlik parasında 12 hafta ceza olabilir.', 'Kalan izin günleri ve maaş bordrosunu iste.'] },
+  { id: 'kuendigung_miete', re: /kündig[\s\S]{0,400}(mietverhältnis|mietvertrag)|(mietverhältnis|mietvertrag)[\s\S]{0,400}kündig|eigenbedarf/i, name: 'Ev kiradan çıkarılma (Kündigung)', risk: 'bad',
+    what: 'Ev sahibi kira sözleşmesini feshediyor. Ev sahibinin yasal bir sebebi olmalı (ör. kendi ihtiyacı – Eigenbedarf).',
+    todo: ['Kiracı derneğine (Mieterverein, yılda ~60–100 €) hemen üye ol ve fesihi kontrol ettir: birçoğu hatalıdır.', 'Fesih senin için ağır sonuç doğuruyorsa (hastalık, yaşlılık, çocuklar) itiraz (Widerspruch) hakkın var: en geç fesih süresinin bitmesinden 2 ay önce.', 'Evi çıkış tarihi gelmeden boşaltmak zorunda değilsin; mahkeme kararı olmadan seni kimse çıkaramaz.'] },
+  { id: 'vermieter', re: /mieterhöhung|nebenkostenabrechnung|betriebskostenabrechnung|heizkostenabrechnung|vermieter/i, name: 'Ev sahibi (kira artışı / yan giderler)', risk: 'warn',
+    what: 'Kira artışı veya yıllık yan gider (Nebenkosten) hesabı.',
+    todo: ['Kira artışı: bu uygulamadaki "Kira artışı yasal mı" aracıyla kontrol et. Hemen kabul etme veya ödeme.', 'Nebenkosten hesabı: dönem bitiminden sonra 12 ay içinde gelmezse ek ödeme istenemez.', 'Faturaları görme hakkın var (Belegeinsicht). Hatalar çok yaygın; Mieterverein kontrol eder.'] },
+  { id: 'krankenkasse', re: /krankenkasse|krankenversicherung|beitragsrückstand|\baok\b|techniker krankenkasse|barmer|\bdak\b|\bikk\b/i, name: 'Sağlık sigortası', risk: 'warn',
+    what: 'Sağlık sigortası aidatı, belge isteği veya borç.',
+    todo: ['Aidat borcu varsa taksit iste; borcun olsa bile acil tedavi hakkın devam eder.', 'Gelirin düştüyse aidatı yeniden hesaplatmak için gelir belgesi gönder.'] },
+];
+const GLOSSARY = [
+  ['bescheid', 'resmi karar'], ['widerspruch', 'itiraz (idareye)'], ['einspruch', 'itiraz (vergi, ceza, mahkeme)'], ['rechtsbehelfsbelehrung', 'itiraz hakkı açıklaması – itiraz süresi burada yazar'],
+  ['frist', 'süre / son tarih'], ['fristgerecht', 'süresi içinde'], ['unverzüglich', 'gecikmeden, hemen'], ['umgehend', 'derhal'], ['spätestens', 'en geç'], ['fällig', 'vadesi gelmiş'],
+  ['forderung', 'alacak (senden istenen para)'], ['hauptforderung', 'asıl borç'], ['gläubiger', 'alacaklı'], ['schuldner', 'borçlu'], ['zinsen', 'faiz'], ['mahngebühr', 'ihtar ücreti'],
+  ['säumniszuschlag', 'gecikme zammı'], ['ratenzahlung', 'taksitle ödeme'], ['stundung', 'ödeme erteleme'], ['pfändung', 'haciz'], ['gerichtsvollzieher', 'icra memuru'], ['vollstreckung', 'icra, zorla tahsil'],
+  ['p-konto', 'hacze karşı korumalı banka hesabı'], ['aktenzeichen', 'dosya numarası (cevapta mutlaka yaz)'], ['kassenzeichen', 'ödeme referans no (havale açıklamasına yaz)'], ['verwendungszweck', 'havale açıklaması'],
+  ['überweisung', 'havale'], ['lastschrift', 'otomatik ödeme talimatı'], ['antrag', 'başvuru'], ['anhörung', 'savunma isteme'], ['mitwirkung', 'belge/bilgi verme yükümlülüğü'], ['nachweis', 'kanıt, belge'],
+  ['unterlagen', 'evraklar'], ['kontoauszüge', 'banka hesap dökümleri'], ['meldetermin', 'zorunlu randevu'], ['einladung', 'davet / randevu'], ['leistungsminderung', 'yardımda kesinti (ceza)'], ['rückforderung', 'geri ödeme talebi'],
+  ['erstattung', 'iade (para sana döner)'], ['nachzahlung', 'ek ödeme (sen ödersin)'], ['guthaben', 'alacak bakiyesi (lehine)'], ['abschlag', 'aylık taksit / avans'], ['bewilligungszeitraum', 'yardım onay dönemi'], ['weiterbewilligungsantrag', 'yardımın devamı başvurusu'],
+  ['zustellung', 'tebliğ'], ['bekanntgabe', 'kararın bildirildiği gün'], ['steuererklärung', 'vergi beyannamesi'], ['vorauszahlung', 'peşin ödeme'], ['kindergeld', 'çocuk parası'], ['familienkasse', 'çocuk parası kurumu'],
+  ['wohngeld', 'kira yardımı'], ['kaltmiete', 'ısınmasız kira'], ['warmmiete', 'ısınma dahil kira'], ['nebenkosten', 'yan giderler (aidat, su, çöp…)'], ['kaution', 'depozito'], ['eigenbedarf', 'ev sahibinin kendi ihtiyacı'],
+  ['kündigungsfrist', 'fesih bildirim süresi'], ['abmahnung', 'yazılı uyarı (iş/hukuk)'], ['aufhebungsvertrag', 'karşılıklı fesih sözleşmesi (imzalama!)'], ['sperrzeit', 'işsizlik parası cezası'], ['arbeitsunfähigkeit', 'iş göremezlik, rapor'],
+  ['bußgeld', 'para cezası'], ['verwarnungsgeld', 'küçük para cezası'], ['fahrverbot', 'sürüş yasağı'], ['halter', 'araç sahibi'], ['ordnungswidrigkeit', 'kabahat'], ['straftat', 'suç'],
+  ['ladung', 'çağrı (mahkeme, polis)'], ['aufenthaltstitel', 'oturum izni'], ['fiktionsbescheinigung', 'geçici oturum belgesi'], ['niederlassungserlaubnis', 'süresiz oturum'], ['meldebescheinigung', 'ikamet belgesi'],
+  ['beitragsnummer', 'abone/aidat numarası'], ['befreiung', 'muafiyet'], ['ermäßigung', 'indirim'], ['vollmacht', 'vekalet'], ['einschreiben', 'taahhütlü mektup'], ['zuzüglich', 'artı, eklenerek'], ['abzüglich', 'düşülerek'], ['betrag', 'tutar'],
+];
+function analyzeLetter(text) {
+  const t = text.replace(/\r/g, '');
+  const low = t.toLowerCase();
+  let types = LETTER_TYPES.filter(x => x.re.test(t));
+  if (types.some(x => x.id.startsWith('kuendigung_'))) types = types.filter(x => x.id !== 'vermieter');
+  const dates = findDates(t);
+  const labelled = /datum[:\s]*([0-9]{1,2}\.\s?[0-9]{1,2}\.\s?[0-9]{2,4})/i.exec(t);
+  const letterDate = labelled ? findDates(labelled[1])[0]?.d : dates.find(x => x.i < t.length * 0.4)?.d || null;
+  const deadlines = [];
+  const explicit = /(bis zum|bis spätestens|spätestens (?:am|bis)?|bis)\s+(\d{1,2}\.\s?(?:\d{1,2}\.|\s*[a-zäA-Z]+)\s?\d{2,4})/gi;
+  let m;
+  while ((m = explicit.exec(t))) { const d = findDates(m[2])[0]; if (d) deadlines.push({ d: d.d, why: '"' + m[0].trim() + '"' }); }
+  const rel = /(innerhalb|binnen)\s+(?:von\s+)?(\d+|[a-zäöüß]+)\s+(tagen|tag|wochen|woche|monaten|monats|monat)/gi;
+  const base = letterDate || new Date();
+  const isAuthority = types.some(x => ['finanzamt', 'jobcenter', 'auslaender', 'bussgeld', 'mahnbescheid', 'strafbefehl'].includes(x.id));
+  while ((m = rel.exec(t))) {
+    const n = /^\d+$/.test(m[2]) ? +m[2] : NUMWORD[m[2].toLowerCase()];
+    if (!n) continue;
+    const u = m[3].toLowerCase(), start = isAuthority && letterDate ? addDays(letterDate, 4) : base;
+    const d = u.startsWith('tag') ? addDays(start, n) : u.startsWith('woche') ? addDays(start, 7 * n) : addMonths(start, n);
+    deadlines.push({ d, why: '"' + m[0].trim() + '"' + (letterDate ? ' – mektup tarihinden' + (isAuthority ? ' (+4 gün tebliğ süresi)' : '') : ' – bugünden (mektup tarihi bulunamadı)') + ' hesaplandı' });
+  }
+  if (!deadlines.length && types[0]?.days && letterDate) deadlines.push({ d: addDays(addDays(letterDate, isAuthority ? 4 : 0), types[0].days), why: 'Bu tür mektuplarda yasal süre ' + types[0].days + ' gün (tahmini; mektubun eline geçtiği günden sayılır)' });
+  if (!deadlines.length && types[0]?.months && letterDate) deadlines.push({ d: addMonths(addDays(letterDate, 4), types[0].months), why: 'Bu tür kararlarda itiraz süresi 1 ay (tahmini, tebliğden itibaren)' });
+  deadlines.forEach(x => { const wd = x.d.getDay(); if (wd === 6 || wd === 0) { x.d = addDays(x.d, wd === 6 ? 2 : 1); x.why += '; hafta sonuna denk geldiği için süre pazartesiye kayar'; } });
+  deadlines.sort((a, b) => a.d - b.d);
+  const amounts = [...new Set([...t.matchAll(/(\d{1,3}(?:\.\d{3})*,\d{2})\s?(?:€|eur\b|euro)|(?:€|eur)\s?(\d{1,3}(?:\.\d{3})*,\d{2})/gi)].map(x => x[1] || x[2]))];
+  const ids = [...t.matchAll(/(aktenzeichen|az\.|kassenzeichen|steuernummer|kundennummer|vertragsnummer|beitragsnummer|bg-nummer|rechnungsnummer|mandatsreferenz|geschäftszeichen|unser zeichen)[:\s]+([A-Z0-9][A-Z0-9\/\-\. ]{3,28}[A-Z0-9])/gi)].map(x => [x[1].replace(/^./, c => c.toUpperCase()), x[2].trim()]);
+  const ibans = [...t.matchAll(/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){2,7}(?:\s?[A-Z0-9]{1,3})?\b/g)].map(x => checkIban(x[0])).filter(r => r.ok);
+  const scam = [];
+  if (types.some(x => ['inkasso', 'mahnung', 'mahnbescheid'].includes(x.id))) {
+    ibans.filter(r => r.cc !== 'DE').forEach(r => scam.push(['bad', 'Yurt dışı IBAN (' + r.cc + '): Almanya\'daki borç için yabancı hesap, sahte Inkasso mektuplarında çok sık görülür.']));
+    if (/haftbefehl|verhaftung|festnahme|gefängnis|freiheitsstrafe/i.test(t)) scam.push(['bad', 'Hapis/tutuklama tehdidi: Inkasso şirketleri bunu yapamaz. Bu mektup sahte ya da yasa dışı baskı.']);
+    if (/innerhalb von (24|48|72) stunden|heute noch|sofort zahlen/i.test(t)) scam.push(['bad', 'Saatler içinde ödeme baskısı: dolandırıcıların tipik taktiği. Gerçek firmalar makul süre verir.']);
+    if (/paysafe|gutschein|bitcoin|krypto|western union|moneygram|itunes|google play/i.test(t)) scam.push(['bad', 'Kupon/kripto/Western Union ile ödeme isteği: kesinlikle dolandırıcılık.']);
+    if (types.some(x => x.id === 'inkasso') && !/auftraggeber|gläubiger|im auftrag|mandant/i.test(t)) scam.push(['warn', 'Asıl alacaklı (Auftraggeber/Gläubiger) yazmıyor. Gerçek Inkasso mektubunda kimin adına tahsil yapıldığı yazmak zorunda.']);
+    if (types.some(x => x.id === 'inkasso') && !/hauptforderung|rechnung vom|vertrag vom|forderung aus/i.test(t)) scam.push(['warn', 'Borcun neyden doğduğu (fatura, sözleşme, tarih) açıklanmamış. Yasal olarak açıklanmalı.']);
+    if (types.some(x => x.id === 'mahnbescheid') && !/amtsgericht/i.test(t)) scam.push(['warn', 'Gerçek Mahnbescheid her zaman bir Amtsgericht\'ten (mahkeme) sarı zarfla gelir. Mahkeme adı yok: şüpheli.']);
+  }
+  const norm = s => s.replace(/ß/g, 'ss').replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u');
+  const nlow = norm(low);
+  const words = GLOSSARY.filter(([w]) => nlow.includes(norm(w)));
+  const rbb = /rechtsbehelfsbelehrung[\s\S]{0,600}/i.exec(t)?.[0].split(/\n\s*\n/)[0];
+  return { types, letterDate, deadlines, amounts, ids, ibans, scam, words, rbb };
+}
+function replyLetter(kind, a, me) {
+  const az = a.ids[0] ? a.ids[0][0] + ': ' + a.ids[0][1] : 'Aktenzeichen: [Nummer]';
+  const vom = a.letterDate ? deDate(a.letterDate) : '[Datum]';
+  const head = `${me.name || '[Name]'}\n${me.adr || '[Adresse]'}\n\n[Behörde / Firma, Adresse]\n\n${deDate()}\n\n`;
+  const end = `\n\nMit freundlichen Grüßen\n\n${me.name || '[Name]'}`;
+  const T = {
+    widerspruch: [`Widerspruch gegen den Bescheid vom ${vom} – ${az}`, `hiermit lege ich gegen den oben genannten Bescheid vom ${vom} fristgerecht Widerspruch ein.\n\nDie Begründung reiche ich nach. Ich beantrage Akteneinsicht gemäß § 25 SGB X.\n\nBitte bestätigen Sie mir den Eingang dieses Widerspruchs.`],
+    einspruch: [`Einspruch gegen den Bescheid vom ${vom} – ${az}`, `hiermit lege ich gegen den oben genannten Bescheid vom ${vom} fristgerecht Einspruch ein.\n\nDie Begründung reiche ich gesondert nach.\n\nBitte bestätigen Sie mir den Eingang dieses Einspruchs.`],
+    widerspruch_mb: [`Widerspruch gegen den Mahnbescheid vom ${vom} – ${az}`, `hiermit lege ich gegen den oben genannten Mahnbescheid vom ${vom} Widerspruch in voller Höhe ein.\n\n(Hinweis: Am einfachsten ist es, das dem Mahnbescheid beigefügte amtliche Widerspruchsformular zu verwenden.)`],
+    bestreiten: [`Ihre Forderung – ${az}`, `die von Ihnen geltend gemachte Forderung bestreite ich dem Grunde und der Höhe nach.\n\nBitte übersenden Sie mir einen vollständigen Nachweis der Forderung: den zugrunde liegenden Vertrag bzw. die Rechnung, den ursprünglichen Gläubiger, eine Aufstellung der Hauptforderung, Zinsen und Kosten sowie Ihre Inkassovollmacht bzw. Registrierung nach dem Rechtsdienstleistungsgesetz.\n\nBis zur Vorlage dieser Nachweise werde ich keine Zahlung leisten. Einer Weitergabe meiner Daten an Auskunfteien (z. B. SCHUFA) widerspreche ich, da die Forderung bestritten ist (§ 31 Abs. 2 BDSG).`],
+  };
+  const [subj, body] = T[kind];
+  return [head + 'Betreff: ' + subj + '\n\nSehr geehrte Damen und Herren,\n\n' + body + end, subj];
+}
+function mountDecoder(main) {
+  const ta = h('textarea', { class: 'input', id: 'bd-in', placeholder: 'Mektubun metnini buraya yapıştır…', style: 'min-height:160px;font-family:var(--font-body);font-size:15px' });
+  const file = h('input', { type: 'file', accept: 'image/*', hidden: true });
+  const ocrBtn = h('button', { class: 'btn primary', onclick: () => file.click() }, '📷 Fotoğraftan oku');
+  const ocrStatus = h('p', { class: 'small muted' });
+  const res = h('div', { style: 'display:grid;gap:12px' });
+  const me = { name: '', adr: '' };
+  let worker = null, timer;
+  file.onchange = async () => {
+    const f = file.files[0]; file.value = '';
+    if (!f) return;
+    ocrBtn.disabled = true;
+    try {
+      ocrStatus.textContent = 'Metin okuma modülü indiriliyor (ilk seferde ~5 MB)…';
+      await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+      if (!worker) worker = await Tesseract.createWorker('deu', 1, { logger: x => { if (x.status === 'recognizing text') ocrStatus.textContent = 'Okunuyor… %' + Math.round(x.progress * 100); } });
+      const { data } = await worker.recognize(f);
+      ta.value = data.text; ocrStatus.textContent = 'Okundu. Hatalı kelimeler olabilir; önemli tarih ve tutarları fotoğraftan kontrol et.';
+      run();
+    } catch (e) { ocrStatus.textContent = 'Okunamadı: ' + (e.message || e) + '. Alternatif: iPhone Fotoğraflar\'da metne basılı tut → Tümünü Seç → Kopyala, buraya yapıştır.'; }
+    ocrBtn.disabled = false;
+  };
+  function run() {
+    const text = ta.value.trim();
+    if (text.length < 30) return res.replaceChildren();
+    const a = analyzeLetter(text);
+    const top = a.types[0];
+    const fake = a.scam.filter(x => x[0] === 'bad').length;
+    const kids = [];
+    kids.push(h('div', { class: 'verdict ' + (fake ? 'v-bad' : top ? 'v-' + top.risk : 'v-ok') }, h('i', { class: 'dot' }),
+      h('div', {}, h('b', {}, fake ? 'Büyük ihtimalle SAHTE – ödeme yapma' : top ? top.name : 'Genel mektup'),
+        h('div', { class: 'small muted' }, fake ? top.name + ' görünümünde, ' + fake + ' dolandırıcılık işareti var' : top ? (top.risk === 'bad' ? 'ÖNEMLİ: süreyi kaçırma' : 'Dikkat gerektiriyor') : 'Bilinen bir resmi mektup türü bulunamadı'))));
+    if (a.deadlines.length) {
+      const d = a.deadlines[0], left = daysLeft(d.d);
+      kids.push(h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Son tarih'), h('div', { style: 'font-size:22px' }, trDate(d.d)),
+        h('div', { class: 'small' }, left < 0 ? Math.abs(left) + ' GÜN GEÇMİŞ!' : left === 0 ? 'BUGÜN!' : left + ' gün kaldı'), h('div', { class: 'small', style: 'opacity:.75;margin-top:4px' }, d.why)));
+    }
+    if (a.scam.length) kids.push(h('h2', {}, 'Dolandırıcılık kontrolü'), findList(a.scam));
+    if (top) kids.push(h('div', { class: 'card' }, h('b', {}, 'Bu ne?'), h('p', {}, top.what), h('b', {}, 'Ne yapmalısın?'), findList(top.todo.map(x => ['info', x]))));
+    a.types.slice(1, 3).forEach(x => kids.push(h('details', { class: 'card' }, h('summary', {}, 'Ayrıca: ' + x.name), h('p', {}, x.what), findList(x.todo.map(y => ['info', y])))));
+    const facts = [];
+    if (a.letterDate) facts.push(['Mektup tarihi', deDate(a.letterDate)]);
+    a.amounts.slice(0, 4).forEach((x, i) => facts.push([i ? 'Tutar' : 'Tutar(lar)', x + ' €']));
+    a.ids.slice(0, 4).forEach(([k, v]) => facts.push([k, v]));
+    a.ibans.forEach(r => facts.push(['IBAN (' + r.cc + ')', r.s.replace(/(.{4})/g, '$1 ').trim()]));
+    a.deadlines.slice(1, 3).forEach(d => facts.push(['Diğer tarih', deDate(d.d)]));
+    if (facts.length) kids.push(h('h2', {}, 'Mektuptan çıkanlar'), h('div', { class: 'kv' }, kvRows(facts)));
+    if (a.rbb) kids.push(h('details', { class: 'card' }, h('summary', {}, 'İtiraz hakkı paragrafı (Rechtsbehelfsbelehrung)'), h('p', { class: 'small mono' }, a.rbb)));
+    if (top?.reply) {
+      const nm = h('input', { class: 'input', id: 'bd-name', value: me.name, placeholder: 'Adın soyadın' }), adr = h('input', { class: 'input', id: 'bd-adr', value: me.adr, placeholder: 'Adresin' });
+      const lo = letterOut();
+      const upd = () => { me.name = nm.value; me.adr = adr.value; const [txt, s] = replyLetter(top.reply, a, me); lo.set(txt, s); };
+      nm.oninput = adr.oninput = upd; upd();
+      kids.push(h('details', { class: 'card' }, h('summary', {}, 'Cevap / itiraz mektubu (Almanca)'),
+        h('p', { class: 'small muted' }, 'Hack: İtirazın gerekçesini hemen yazmak zorunda değilsin. Önce bu kısa mektupla süreyi koru, gerekçeyi sonra gönder. Einwurf-Einschreiben ile yolla.'), nm, adr, lo));
+    }
+    if (a.words.length) kids.push(h('details', { class: 'card' }, h('summary', {}, 'Sözlük: mektuptaki ' + a.words.length + ' resmi kelime'), h('div', { class: 'kv' }, kvRows(a.words.map(([w, m]) => [w, m])))));
+    res.replaceChildren(...kids);
+  }
+  ta.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 350); });
+  main.append(
+    h('div', { class: 'row' }, ocrBtn, h('button', { class: 'btn', onclick: async () => { try { ta.value = await navigator.clipboard.readText(); run(); } catch { toast('Yapıştırmak için kutuya basılı tut'); } } }, 'Yapıştır')),
+    file, ocrStatus, ta, res,
+    h('div', { class: 'note' },
+      h('span', {}, 'En iyi sonuç: iPhone Fotoğraflar\'da mektubun fotoğrafını aç → metne basılı tut → Tümünü Seç → Kopyala → buraya yapıştır. "Fotoğraftan oku" ise tamamen telefonda çalışır, fotoğraf hiçbir yere gönderilmez.'),
+      h('span', {}, 'Bu araç kurallara göre tahmin yapar, avukat değildir. Önemli işlerde (mahkeme, oturum, işten çıkarılma) mutlaka ücretsiz danışmanlığa git: Verbraucherzentrale, Migrationsberatung, Mieterverein, sendika.')));
+  return () => { clearTimeout(timer); worker?.terminate(); };
+}
+
+// ---------- Kira artışı yasal mı ----------
+function mountRent(main) {
+  const F = {};
+  const mk = (id, label, val = '', extra = {}) => { const [i, l] = field('rn-' + id, label, { inputmode: 'decimal', value: val, ...extra }); F[id] = { i, l }; return l; };
+  const tight = h('input', { type: 'checkbox', id: 'rn-tight', checked: true });
+  let kind = 'spiegel';
+  const res = h('div', { style: 'display:grid;gap:12px' });
+  const show = ids => Object.entries(F).forEach(([k, { l }]) => (l.hidden = !ids.includes(k)));
+  const VIS = { spiegel: ['now', 'new', 'old3', 'months', 'qm', 'ms'], modern: ['now', 'new', 'qm', 'cost', 'mod6'], index: ['now', 'new', 'months', 'vpi'], staffel: ['now', 'new', 'months'] };
+  function calc() {
+    const v = k => parseNum(F[k].i.value);
+    const now = v('now'), nw = v('new'), qm = v('qm'), months = v('months');
+    if (!(now > 0 && nw > 0)) return res.replaceChildren();
+    const inc = nw - now, pct = inc / now * 100;
+    const finds = [];
+    let max = null;
+    if (kind === 'spiegel') {
+      const old3 = v('old3') > 0 ? v('old3') : now, cap = tight.checked ? 15 : 20;
+      max = old3 * (1 + cap / 100);
+      finds.push(nw > max + 0.005 ? ['bad', '3 yıllık sınır aşılıyor: 3 yılda en fazla %' + cap + ' artış olabilir. Yasal en fazla ' + nf(max) + ' €.'] : ['ok', '3 yılda %' + cap + ' sınırının içinde (' + nf((nw / old3 - 1) * 100, 1) + '%).']);
+      if (isFinite(months)) finds.push(months < 15 ? ['bad', 'Son artıştan/taşınmadan bu yana ' + months + ' ay geçmiş. Yeni kira en erken 15. ayda başlayabilir (istek en erken 12. ayda).'] : ['ok', 'Bekleme süresi (15 ay) dolmuş.']);
+      if (qm > 0 && v('ms') > 0) { const per = nw / qm; max = Math.min(max, v('ms') * qm); finds.push(per > v('ms') + 0.005 ? ['bad', 'Yeni kira ' + nf(per) + ' €/m², Mietspiegel ' + nf(v('ms')) + ' €/m². Bölgedeki emsal kiranın üstüne çıkamaz.'] : ['ok', 'Mietspiegel sınırının içinde (' + nf(per) + ' €/m²).']); }
+      else finds.push(['info', 'Mietspiegel değerini gir: şehrinin "Mietspiegel" tablosunda dairenin yaşı, büyüklüğü ve konumuna göre €/m² yazar. Ev sahibi gerekçe olarak bunu göstermek zorunda.']);
+      finds.push(['info', 'Kabul etmek için süren: mektubun geldiği aydan sonraki 2. ayın sonuna kadar. Hemen imzalama, otomatik ödeme yapma: ödemek kabul sayılabilir.'], ['info', 'Kabul etmezsen ev sahibi dava açmak zorunda. Bu yüzden seni kira artışı yüzünden çıkaramaz.']);
+    } else if (kind === 'modern') {
+      const cost = v('cost'), per = now / (qm || 1), capQm = (per < 7 ? 2 : 3) * (qm || 0) - (v('mod6') || 0);
+      const byCost = cost > 0 ? cost * 0.08 / 12 : Infinity;
+      max = now + Math.max(0, Math.min(byCost, qm > 0 ? capQm : Infinity));
+      finds.push(cost > 0 ? ['info', 'Modernizasyon masrafının yılda en fazla %8\'i kiraya eklenebilir: ayda ' + nf(byCost) + ' €.'] : ['warn', 'Modernizasyon masrafını gir.']);
+      if (qm > 0) finds.push(['info', '6 yılda en fazla ' + (per < 7 ? 2 : 3) + ' €/m² artış: ' + nf(Math.max(0, capQm)) + ' € kalan pay.']);
+      if (isFinite(max)) finds.push(nw > max + 0.005 ? ['bad', 'İstenen artış fazla. Yasal en fazla ' + nf(max) + ' €.'] : ['ok', 'Sınırların içinde görünüyor.']);
+      finds.push(['info', 'Sadece gerçek iyileştirme (yalıtım, asansör, yeni pencere) sayılır; tamir/bakım (Instandhaltung) kiraya yansıtılamaz ve masraftan düşülmeli.'], ['info', 'Ev sahibi işe başlamadan en az 3 ay önce yazılı bildirmeliydi.']);
+    } else if (kind === 'index') {
+      const vpi = v('vpi');
+      if (vpi > 0) { max = now * (1 + vpi / 100); finds.push(nw > max + 0.005 ? ['bad', 'Indexmiete sadece enflasyon kadar artabilir: en fazla ' + nf(max) + ' €.'] : ['ok', 'Enflasyon artışının içinde.']); }
+      else finds.push(['info', 'Son artıştan bu yana enflasyon oranını (Verbraucherpreisindex, destatis.de) gir.']);
+      if (isFinite(months)) finds.push(months < 12 ? ['bad', 'Indexmiete yılda en fazla 1 kez artabilir; ' + months + ' ay geçmiş.'] : ['ok', '12 ay bekleme süresi dolmuş.']);
+      finds.push(['info', 'Sadece sözleşmende "Indexmiete" maddesi varsa geçerli. Ev sahibi hesabı yazılı göstermeli.']);
+    } else {
+      if (isFinite(months)) finds.push(months < 12 ? ['bad', 'Kademeli kira (Staffelmiete) adımları arasında en az 12 ay olmalı.'] : ['ok', '12 ay kuralı tamam.']);
+      finds.push(['info', 'Sadece sözleşmede yazılı tutar ve tarihler geçerli. Staffelmiete varken Mietspiegel veya modernizasyon artışı istenemez.']);
+    }
+    const bad = finds.some(f => f[0] === 'bad');
+    res.replaceChildren(
+      h('div', { class: 'verdict ' + (bad ? 'v-bad' : 'v-ok') }, h('i', { class: 'dot' }), h('div', {}, h('b', {}, bad ? 'Artış yasal görünmüyor' : 'Artış yasal sınırlarda görünüyor'), h('div', { class: 'small muted' }, '+' + nf(inc) + ' € / ay (%' + nf(pct, 1) + ') · yılda ' + nf(inc * 12, 0) + ' €'))),
+      max && isFinite(max) && bad ? h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Yasal en yüksek kira'), h('div', { class: 'xl' }, nf(max) + ' €'), h('div', { class: 'small' }, 'Fazlası: yılda ' + nf(Math.max(0, nw - max) * 12, 0) + ' €')) : '',
+      findList(finds),
+      h('div', { class: 'note' }, 'Kiracı derneği (Mieterverein) yılda ~60–100 € ile mektubu kontrol eder ve itirazı yazar; tek bir haksız artış bunu çıkarır. Bu araç tahmindir, hukuki danışmanlık değildir.'));
+  }
+  main.append(
+    h('div', { class: 'lbl' }, 'Artış türü (mektupta yazar)', segCtl([['spiegel', 'Emsal kira'], ['modern', 'Modernizasyon'], ['index', 'Index'], ['staffel', 'Kademeli']], 'spiegel', k => { kind = k; show(VIS[k]); tight.parentElement.hidden = k !== 'spiegel'; calc(); })),
+    mk('now', 'Şu anki soğuk kira (Kaltmiete) €', ''), mk('new', 'İstenen yeni soğuk kira €', ''), mk('old3', '3 yıl önceki soğuk kira € (aynıysa boş bırak)', ''),
+    mk('months', 'Son artıştan / taşınmadan beri kaç ay?', ''), mk('qm', 'Daire büyüklüğü m²', ''), mk('ms', 'Mietspiegel değeri €/m² (biliyorsan)', ''),
+    mk('cost', 'Modernizasyon masrafı (sana düşen pay) €', ''), mk('mod6', 'Son 6 yıldaki önceki modernizasyon artışları €/ay', '0'), mk('vpi', 'Enflasyon (son artıştan beri) %', ''),
+    h('label', { class: 'chk', for: 'rn-tight' }, tight, 'Büyük şehir / kira sıkıntılı bölge (Düsseldorf, Köln, Berlin, München, Hamburg, Frankfurt…): sınır %15'),
+    res);
+  Object.values(F).forEach(({ i }) => i.addEventListener('input', calc));
+  tight.addEventListener('change', calc);
+  show(VIS.spiegel);
+}
+
+// ---------- Bürgergeld / Aufstocken ----------
+const REGEL_2026 = { single: 563, partner: 506, k0: 357, k6: 390, k14: 471, k18: 451 };
+const KINDERGELD = 259;
+function erwerbsFreibetrag(gross, kids) {
+  const band = (lo, hi) => Math.max(0, Math.min(gross, hi) - lo);
+  return Math.min(gross, 100) + 0.2 * band(100, 520) + 0.3 * band(520, 1000) + 0.1 * band(1000, kids ? 1500 : 1200);
+}
+function buergergeld({ adults, k0, k6, k14, rent, gross, net, other, single }) {
+  const kids = k0 + k6 + k14;
+  let need = adults === 2 ? 2 * REGEL_2026.partner : REGEL_2026.single;
+  need += k0 * REGEL_2026.k0 + k6 * REGEL_2026.k6 + k14 * REGEL_2026.k14;
+  let mehr = 0;
+  if (adults === 1 && single && kids) mehr = ((k0 >= 1 && kids === 1) || (k0 + k6 >= 2 && kids <= 3) ? 0.36 : Math.min(0.6, 0.12 * kids)) * REGEL_2026.single;
+  need += mehr + rent;
+  const fb = gross > 0 ? Math.min(net, erwerbsFreibetrag(gross, kids)) : 0;
+  const income = Math.max(0, net - fb) + kids * KINDERGELD + other;
+  return { need, mehr, fb, income, claim: Math.max(0, need - income), kindergeld: kids * KINDERGELD };
+}
+function mountBuergergeld(main) {
+  const F = {};
+  const mk = (id, label, val) => { const [i, l] = field('bg-' + id, label, { inputmode: 'decimal', value: val }); F[id] = i; return l; };
+  const single = h('input', { type: 'checkbox', id: 'bg-single' });
+  let adults = 1;
+  const res = h('div', { style: 'display:grid;gap:12px' });
+  function calc() {
+    const v = k => Math.max(0, parseNum(F[k].value) || 0);
+    const r = buergergeld({ adults, k0: v('k0'), k6: v('k6'), k14: v('k14'), rent: v('rent'), gross: v('gross'), net: v('net'), other: v('other'), single: single.checked });
+    res.replaceChildren(
+      h('div', { class: 'lcd' }, h('div', { class: 'small' }, r.claim > 0 ? 'Tahmini aylık hakkın' : 'Bürgergeld hakkı'), h('div', { class: 'xl' }, r.claim > 0 ? '≈ ' + nf(r.claim, 0) + ' €' : 'Yok')),
+      h('div', { class: 'kv' }, kvRows([
+        ['İhtiyaç (yasal asgari + kira' + (r.mehr ? ' + tek ebeveyn ek' : '') + ')', nf(r.need, 0) + ' €'],
+        ['Maaşından sana kalan serbest pay', nf(r.fb, 0) + ' €'],
+        ['Hesaba katılan gelir (Kindergeld dahil)', nf(r.income, 0) + ' €']])),
+      findList([
+        r.claim > 0 ? ['ok', 'Çalışıyor olsan bile Jobcenter maaşını bu tutara kadar tamamlar ("Aufstocken"). Sağlık sigortası da Jobcenter\'dan ödenir.'] : ['info', 'Gelirin ihtiyacını karşılıyor. Ama Wohngeld (kira yardımı) ve çocuk varsa Kinderzuschlag (çocuk başı ~300 €\'ya kadar) hakkın olabilir: Jobcenter\'a bağlı olmadan.'],
+        r.claim > 0 && r.claim < 250 ? ['info', 'Fark küçük: Wohngeld + Kinderzuschlag daha avantajlı olabilir (randevu, belge yükü yok). Wohngeld-Rechner (bmwsb.bund.de) ile karşılaştır.'] : null,
+        ['info', 'Kira "uygun" (angemessen) olmalı; şehre göre sınır var. İlk yıl kira tamamen ödenir.'],
+        ['info', 'Başvuru: jobcenter.digital üzerinden online. Para başvuru ayının başından itibaren hesaplanır, bekleme yapma.'],
+        ['warn', 'Kaba tahmindir: 2026 oranları (tek kişi 563 €). Birikim, araç, borç ve 2026 reformu (Neue Grundsicherung) sonucu değiştirebilir. Kesin hesap Jobcenter\'da.'],
+      ].filter(Boolean)));
+  }
+  main.append(
+    h('div', { class: 'lbl' }, 'Evdeki yetişkin', segCtl([[1, 'Tek'], [2, 'Çift']], 1, x => { adults = x; single.parentElement.hidden = x !== 1; calc(); })),
+    h('div', { style: 'display:grid;grid-template-columns:repeat(3,1fr);gap:8px' }, mk('k0', 'Çocuk 0–5', '0'), mk('k6', 'Çocuk 6–13', '0'), mk('k14', 'Çocuk 14–17', '0')),
+    h('label', { class: 'chk', for: 'bg-single' }, single, 'Çocuğumu tek başıma büyütüyorum'),
+    mk('rent', 'Sıcak kira (ısınma dahil) €/ay', '650'), mk('gross', 'Brüt maaş €/ay (evdeki toplam)', '1200'), mk('net', 'Net maaş €/ay', '950'), mk('other', 'Diğer gelir (nafaka, işsizlik parası…) €/ay', '0'),
+    res);
+  Object.values(F).forEach(i => i.addEventListener('input', calc));
+  single.addEventListener('change', calc);
   calc();
 }
 
