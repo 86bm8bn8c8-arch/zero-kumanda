@@ -178,6 +178,21 @@ video.cam { width: 100%; max-width: 100%; aspect-ratio: 3 / 4; object-fit: cover
 .pill { font: 11px/1 var(--font-mono); padding: 4px 7px; border-radius: 6px; background: var(--panel-2); color: var(--muted); }
 .pill.demo { background: var(--accent); color: var(--on-accent); }
 .pos { color: var(--ok); } .neg { color: var(--bad); }
+.verdict { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); }
+.verdict .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.verdict b { font-size: 17px; }
+.v-ok .dot { background: var(--ok); } .v-warn .dot { background: var(--accent); } .v-bad .dot { background: var(--bad); }
+.v-bad { border-color: var(--bad); }
+.finds { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.finds li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; font-size: 14px; align-items: start; }
+.finds li::before { content: "•"; font: 400 16px/1.2 var(--font-pixel); text-align: center; }
+.finds .bad::before { content: "!"; color: var(--bad); } .finds .warn::before { content: "?"; color: var(--accent); }
+.finds .ok::before { content: "✓"; color: var(--ok); } .finds .info::before { color: var(--muted); }
+.term { background: #050806; border: 1px solid #12301a; border-radius: 12px; padding: 12px; font: 13px/1.5 var(--font-mono); color: #4cff7a; min-height: 50vh; overflow-wrap: anywhere; white-space: pre-wrap; }
+.term .dim { color: #2e8f4a; } .term .err { color: #ff6b5c; } .term .cmd { color: #d9ffe3; }
+.term-in { display: flex; gap: 8px; align-items: center; background: #050806; border: 1px solid #12301a; border-radius: 12px; padding: 4px 4px 4px 12px; font: 14px var(--font-mono); color: #4cff7a; }
+.term-in input { flex: 1; min-width: 0; background: none; border: 0; color: #d9ffe3; font: 16px var(--font-mono); padding: 10px 0; outline: none; }
+.mark { background: var(--bad); color: #fff; border-radius: 3px; padding: 0 3px; font: 11px var(--font-mono); }
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 50;
   bottom: calc(24px + env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 32px);
@@ -258,6 +273,13 @@ const ICON = {
   snake: '<path d="M4 18h6v-6h6V6h4"/><circle cx="20" cy="6" r="1"/>',
   chart: '<path d="M3 20h18M6 16l4-5 3 3 5-7"/><path d="M15 7h3v3"/>',
   book: '<path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11M9 8h6"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  link: '<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  photo: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/>',
+  ghost: '<path d="M5 20V10a7 7 0 0114 0v10l-2.5-2-2.3 2-2.2-2-2.2 2-2.3-2z"/><circle cx="9.5" cy="10" r="1"/><circle cx="14.5" cy="10" r="1"/>',
+  term: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/>',
   radio: '<path d="M4.9 19.1a10 10 0 010-14.2M19.1 4.9a10 10 0 010 14.2M8 16a5 5 0 010-8M16 8a5 5 0 010 8"/><circle cx="12" cy="12" r="1.5"/>',
 };
 const icon = n => h('span', { class: 'ic', html: '<svg viewBox="0 0 24 24">' + ICON[n] + '</svg>' });
@@ -288,7 +310,7 @@ let cleanup = null;
 function route() {
   if (cleanup) { try { cleanup(); } catch {} cleanup = null; }
   const id = location.hash.slice(1);
-  const tool = [...MONEY, ...TOOLS].find(t => t.id === id);
+  const tool = [...SEC, ...MONEY, ...TOOLS].find(t => t.id === id);
   const main = $('#main');
   main.replaceChildren();
   window.scrollTo(0, 0);
@@ -303,6 +325,8 @@ function renderMenu(main) {
     h('div', { class: 'hero' },
       h('div', { class: 'big' }, 'Telefonundaki araç kutusu'),
       h('p', { class: 'muted small' }, 'Flipper tarzı araçlar, sadece iPhone\'un kendi donanımıyla: kamera, mikrofon, hoparlör, hareket sensörleri, GPS ve Bluetooth.')),
+    h('h2', {}, 'Güvenlik'),
+    h('div', { class: 'menu' }, SEC.map(menuItem)),
     h('h2', {}, 'Para'),
     h('div', { class: 'menu' }, MONEY.map(menuItem)),
     h('h2', {}, 'Araçlar'),
@@ -390,7 +414,11 @@ function mountQrScan(main) {
       if (wifi.P) kids.push(h('button', { class: 'btn primary', onclick: () => copyText(wifi.P) }, 'Şifreyi kopyala'));
     } else {
       kids.push(out('Metin', text));
-      if (/^https?:\/\//i.test(text)) kids.push(h('a', { class: 'btn primary', href: text, target: '_blank', rel: 'noopener noreferrer' }, 'Bağlantıyı aç'), h('p', { class: 'small muted' }, 'Açmadan önce adresi kontrol edin: ' + new URL(text).hostname));
+      if (/^https?:\/\//i.test(text)) {
+        const a = analyzeUrl(text);
+        kids.push(verdictBox(a), findList(a.finds));
+        kids.push(h('a', { class: 'btn' + (a.level === 'bad' ? '' : ' primary'), href: text, target: '_blank', rel: 'noopener noreferrer' }, a.level === 'bad' ? 'Yine de aç (önerilmez)' : 'Bağlantıyı aç'));
+      }
     }
     res.replaceChildren(...kids); res.hidden = false; again.hidden = false; status.textContent = '';
   }
@@ -823,6 +851,458 @@ function mountSnake(main) {
   return () => { clearInterval(timer); window.removeEventListener('keydown', keys); };
 }
 
+
+
+// ---------- Güvenlik (etik, savunma amaçlı) ----------
+const SEC = [
+  { id: 'terminal', icon: 'term', name: 'Terminal', desc: 'Tüm güvenlik araçları komutla: pwned, url, dns, mail, whois…', mount: mountTerminal },
+  { id: 'sizinti', icon: 'shield', name: 'Şifre sızıntı kontrolü', desc: 'Şifren veri sızıntılarında var mı, ne kadar sürede kırılır', mount: mountPwned },
+  { id: 'link', icon: 'link', name: 'Bağlantı analizörü', desc: 'Oltalama (phishing) linklerini yakala', mount: mountLink },
+  { id: 'eposta', icon: 'mail', name: 'Alan adı ve e-posta güvenliği', desc: 'DNS, SPF, DMARC, alan adı yaşı', mount: mountDomain },
+  { id: 'iz', icon: 'eye', name: 'Dijital izin', desc: 'IP adresin ve sitelerin seni tanıdığı bilgiler', mount: mountFingerprint },
+  { id: 'exif', icon: 'photo', name: 'Fotoğraf meta veri', desc: 'Fotoğrafta gizli konum var mı, temizle', mount: mountExif },
+  { id: 'gorunmez', icon: 'ghost', name: 'Görünmez karakterler', desc: 'Metne gizlenmiş karakterleri ve ters yazı hilesini bul', mount: mountInvisible },
+];
+const SEC_NOTE = () => h('div', { class: 'note' }, 'Bu araçlar savunma amaçlıdır: kendi şifreleriniz, kendi cihazınız, size gelen linkler ve herkese açık kayıtlar. Başkasının sistemine izinsiz girmeye çalışmak Almanya\'da StGB §202a–c, Türkiye\'de TCK 243–245 kapsamında suçtur.');
+const te = new TextEncoder();
+const hexOf = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+async function jfetch(url) { const r = await fetch(url); if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; } return r.json(); }
+
+// -- Passwords --
+const COMMON_PW = ('123456 123456789 12345678 password qwerty 12345 111111 1234567 123123 1234567890 000000 abc123 password1 iloveyou qwerty123 1q2w3e4r 654321 666666 123321 7777777 '
+  + 'sunshine princess admin welcome monkey dragon football letmein master hello freedom whatever qazwsx trustno1 passwort hallo hallo123 schatz fussball ficken '
+  + 'galatasaray fenerbahce besiktas trabzonspor istanbul ankara sifre parola askim seni sevmiyorum bayern dortmund schalke berlin deutschland turkiye').split(' ');
+const SEQS = ['abcdefghijklmnopqrstuvwxyz', '01234567890', 'qwertyuiopasdfghjklzxcvbnm', 'qwertzuiopasdfghjklyxcvbnm', '1qaz2wsx3edc4rfv'];
+function pwStrength(pw) {
+  const issues = [];
+  const lower = pw.toLowerCase();
+  const unleet = lower.replace(/[@4]/g, 'a').replace(/3/g, 'e').replace(/[1!|]/g, 'i').replace(/0/g, 'o').replace(/[5$]/g, 's').replace(/7/g, 't');
+  let pool = 0;
+  if (/[a-z]/.test(pw)) pool += 26; if (/[A-Z]/.test(pw)) pool += 26; if (/[0-9]/.test(pw)) pool += 10;
+  if (/[^a-zA-Z0-9]/.test(pw)) pool += 33; if (/[^\x00-\x7f]/.test(pw)) pool += 30;
+  let bits = pw.length * Math.log2(pool || 1);
+  const hit = COMMON_PW.find(w => w.length >= 4 && (lower.includes(w) || unleet.includes(w)));
+  if (COMMON_PW.includes(lower) || COMMON_PW.includes(unleet)) { bits = Math.min(bits, 4); issues.push('En çok kullanılan şifreler listesinde.'); }
+  else if (hit) { bits -= hit.length * 3; issues.push('Yaygın bir kelime veya şifre içeriyor: "' + hit + '".'); }
+  for (const seq of SEQS) for (let i = 0; i + 4 <= seq.length; i++) {
+    const part = seq.slice(i, i + 4);
+    if (lower.includes(part) || lower.includes([...part].reverse().join(''))) { bits -= 8; issues.push('Klavye veya alfabe dizisi var ("' + part + '").'); i = seq.length; }
+  }
+  if (/(.)\1{2,}/.test(pw)) { bits -= 6; issues.push('Aynı karakter art arda tekrarlanıyor.'); }
+  if (/(19|20)\d{2}/.test(pw)) { bits -= 6; issues.push('Yıl gibi görünen bir sayı var; doğum yılı tahmin edilir.'); }
+  if (/^[A-Z][a-z]+\d+[!.?]?$/.test(pw)) { bits -= 6; issues.push('"Kelime + sayı" kalıbı, kırma programlarının ilk denediği şeydir.'); }
+  if (pw.length < 12) issues.push('12 karakterden kısa.');
+  bits = Math.max(0, Math.round(bits));
+  const secs = Math.pow(2, bits) / 2 / 1e10; // offline attack, 10 billion guesses/s
+  return { bits, secs, issues: [...new Set(issues)] };
+}
+function humanTime(s) {
+  if (s < 1) return 'anında';
+  const u = [['yıl', 31557600], ['gün', 86400], ['saat', 3600], ['dakika', 60], ['saniye', 1]];
+  if (s > 31557600 * 1e6) return 'milyonlarca yıldan fazla';
+  for (const [n, v] of u) if (s >= v) return Math.round(s / v).toLocaleString('tr-TR') + ' ' + n;
+}
+async function pwnedCount(pw) {
+  const hash = hexOf(await crypto.subtle.digest('SHA-1', te.encode(pw))).toUpperCase();
+  const r = await fetch('https://api.pwnedpasswords.com/range/' + hash.slice(0, 5));
+  if (!r.ok) throw new Error('Sızıntı servisine ulaşılamadı (HTTP ' + r.status + ').');
+  for (const line of (await r.text()).split('\n')) { const [suf, c] = line.trim().split(':'); if (suf === hash.slice(5)) return +c; }
+  return 0;
+}
+function mountPwned(main) {
+  const inp = h('input', { class: 'input mono', id: 'pw-in', type: 'password', placeholder: 'Kontrol edilecek şifre', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', autocomplete: 'off' });
+  const show = h('input', { type: 'checkbox', id: 'pw-show' });
+  show.onchange = () => (inp.type = show.checked ? 'text' : 'password');
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const btn = h('button', { class: 'btn primary block', type: 'submit' }, 'Kontrol et');
+  const form = h('form', { class: 'card', onsubmit: async e => {
+    e.preventDefault(); const pw = inp.value; if (!pw) return;
+    btn.disabled = true; btn.textContent = 'Kontrol ediliyor…';
+    const st = pwStrength(pw); let count = null, err = null;
+    try { count = await pwnedCount(pw); } catch (x) { err = x.message; }
+    btn.disabled = false; btn.textContent = 'Kontrol et';
+    const level = count > 0 || st.bits < 40 ? 'bad' : st.bits < 60 ? 'warn' : 'ok';
+    res.replaceChildren(
+      h('div', { class: 'verdict v-' + level }, h('span', { class: 'dot' }), h('div', {},
+        h('b', {}, count > 0 ? 'Bu şifre sızdırılmış!' : count === 0 ? 'Bilinen sızıntılarda yok' : 'Sızıntı kontrolü yapılamadı'),
+        h('div', { class: 'small muted' }, count > 0 ? count.toLocaleString('tr-TR') + ' kez sızıntı listelerinde görüldü. Bu şifreyi hiçbir yerde kullanmayın, kullandığınız yerlerde hemen değiştirin.' : err || 'Have I Been Pwned veritabanında (milyarlarca şifre) bulunmadı.'))),
+      h('div', { class: 'nums' },
+        h('div', {}, h('span', {}, 'Güç'), h('b', {}, st.bits + ' bit')),
+        h('div', {}, h('span', {}, 'Kırılma süresi'), h('b', { style: 'font-size:13px' }, humanTime(st.secs))),
+        h('div', {}, h('span', {}, 'Uzunluk'), h('b', {}, String([...pw].length)))),
+      st.issues.length ? findList(st.issues.map(t => ['warn', t])) : findList([['ok', 'Bilinen zayıf kalıp bulunmadı.']]),
+      h('p', { class: 'small muted' }, 'Kırılma süresi, şifre özetinin çalındığı ve saniyede 10 milyar deneme yapıldığı varsayımıyla tahmindir.'));
+  } },
+    h('label', { class: 'lbl', for: 'pw-in' }, 'Şifre', inp), h('label', { class: 'chk', for: 'pw-show' }, show, 'Şifreyi göster'), btn);
+  main.append(form, res,
+    h('div', { class: 'note' }, 'Gizlilik: Şifreniz telefondan çıkmaz. Telefon şifrenin SHA-1 özetini hesaplar ve sadece ilk 5 karakterini gönderir (k-anonimlik). Servis bu 5 karakterle başlayan yüzlerce özeti döndürür, eşleşme telefonda aranır.'),
+    SEC_NOTE());
+}
+
+// -- Links --
+const BRANDS = { paypal: 'paypal.com', apple: 'apple.com', icloud: 'icloud.com', google: 'google.com', microsoft: 'microsoft.com', outlook: 'outlook.com', amazon: 'amazon.de', netflix: 'netflix.com',
+  dhl: 'dhl.de', hermes: 'myhermes.de', dpd: 'dpd.de', ups: 'ups.com', fedex: 'fedex.com', sparkasse: 'sparkasse.de', commerzbank: 'commerzbank.de', deutschebank: 'deutsche-bank.de',
+  postbank: 'postbank.de', volksbank: 'volksbank.de', n26: 'n26.com', ing: 'ing.de', instagram: 'instagram.com', facebook: 'facebook.com', whatsapp: 'whatsapp.com', tiktok: 'tiktok.com',
+  tipico: 'tipico.de', ebay: 'ebay.de', kleinanzeigen: 'kleinanzeigen.de', vinted: 'vinted.de', telekom: 'telekom.de', vodafone: 'vodafone.de', garanti: 'garantibbva.com.tr',
+  akbank: 'akbank.com', ziraat: 'ziraatbank.com.tr', isbank: 'isbank.com.tr', yapikredi: 'yapikredi.com.tr', ptt: 'ptt.gov.tr', edevlet: 'turkiye.gov.tr', trendyol: 'trendyol.com', hepsiburada: 'hepsiburada.com' };
+const SHORTENERS = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd', 'cutt.ly', 'rebrand.ly', 'shorturl.at', 'rb.gy', 't.ly', 'tiny.cc', 'buff.ly', 's.id', 'v.gd'];
+const RISKY_TLD = ['zip', 'mov', 'top', 'xyz', 'click', 'buzz', 'rest', 'country', 'gq', 'tk', 'ml', 'cf', 'ga', 'cam', 'quest', 'sbs', 'cfd', 'icu', 'monster', 'support'];
+const MULTI_SLD = ['co.uk', 'com.tr', 'gov.tr', 'org.tr', 'net.tr', 'edu.tr', 'com.au', 'co.jp', 'com.br', 'co.at', 'or.at', 'gv.at'];
+function registrable(host) {
+  const parts = host.split('.');
+  const two = parts.slice(-2).join('.');
+  return MULTI_SLD.includes(two) && parts.length > 2 ? parts.slice(-3).join('.') : two;
+}
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+/** Pure heuristic phishing check. Returns { level: ok|warn|bad, host, finds: [[level, text]] }. */
+function analyzeUrl(raw) {
+  const finds = [];
+  let input = raw.trim();
+  if (/[Ѐ-ӿͰ-Ͽ]/.test(input)) finds.push(['bad', 'Adreste Kiril veya Yunan harfleri var. Latin harflerine çok benzeyen bu harflerle sahte alan adları yapılır.']);
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(input)) input = 'https://' + input;
+  let u;
+  try { u = new URL(input); } catch { return { level: 'bad', host: '', finds: [['bad', 'Geçerli bir web adresi değil.']] }; }
+  if (!/^https?:$/.test(u.protocol)) return { level: 'warn', host: '', finds: [['warn', u.protocol + ' bağlantısı bir web sitesi değil, telefonda bir uygulama veya işlem başlatır.']] };
+  const host = u.hostname.toLowerCase().replace(/\.$/, '');
+  if (u.protocol === 'http:') finds.push(['warn', 'Şifreli değil (http). Giriş bilgisi girilecek bir site asla http olmamalı.']);
+  if (u.username || u.password || /^[^/]*@/.test(raw.replace(/^[a-z]+:\/\//i, ''))) finds.push(['bad', '@ hilesi: tarayıcı @ işaretinden öncesini yok sayar. Gerçek adres: ' + host]);
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.startsWith('[')) finds.push(['bad', 'Alan adı yerine çıplak IP adresi kullanılmış. Gerçek kurumlar bunu yapmaz.']);
+  if (host.split('.').some(l => l.startsWith('xn--'))) finds.push(['bad', 'Uluslararası karakterli (punycode) alan adı: ' + host + '. Taklit harflerle yapılmış olabilir.']);
+  const reg = registrable(host), regLabel = reg.split('.')[0], tld = host.split('.').pop();
+  if (SHORTENERS.includes(host)) finds.push(['warn', 'Link kısaltıcı (' + host + '). Gerçek hedef gizli; nereye gittiğini bilmeden açmayın.']);
+  if (RISKY_TLD.includes(tld)) finds.push(['warn', '.' + tld + ' uzantısı oltalama sitelerinde çok sık kullanılıyor.']);
+  if ((regLabel.match(/-/g) || []).length >= 2) finds.push(['warn', 'Alan adında çok sayıda tire var (' + reg + '). Sahte siteler genelde böyle kurulur: "giris-guvenli-banka".']);
+  const labels = host.split('.');
+  if (labels.length >= 5) finds.push(['warn', 'Çok sayıda alt alan adı var. Asıl alan adı sondaki: ' + reg]);
+  const norm = s => s.replace(/0/g, 'o').replace(/1/g, 'l').replace(/3/g, 'e').replace(/5/g, 's').replace(/rn/g, 'm').replace(/vv/g, 'w').replace(/-/g, '');
+  for (const [brand, official] of Object.entries(BRANDS)) {
+    const isOfficial = reg === official || reg === registrable(official) || host === official || host.endsWith('.' + official);
+    if (isOfficial) { finds.push(['ok', 'Resmi ' + brand + ' alan adı: ' + reg]); break; }
+    const flat = host.replace(/[.-]/g, '');
+    if ((flat.includes(brand) && brand.length >= 4) || host.split(/[.-]/).includes(brand)) { finds.push(['bad', '"' + brand + '" adını kullanıyor ama resmi site değil. Asıl alan adı: ' + reg + ' (resmi olan: ' + official + ')']); break; }
+    if (brand.length >= 5 && host.split(/[.-]/).some(tok => norm(tok) === brand || lev(tok, brand) === 1)) { finds.push(['bad', 'Taklit alan adı: "' + regLabel + '", "' + brand + '" adına çok benziyor. Resmi olan: ' + official]); break; }
+  }
+  const words = (host + u.pathname).toLowerCase();
+  const bait = ['login', 'signin', 'verify', 'verif', 'secure', 'account', 'update', 'unlock', 'konto', 'bestaetig', 'bestätig', 'sicherheit', 'giris', 'dogrula', 'sifre', 'odeme', 'paket', 'kargo', 'iade', 'refund', 'wallet', 'bonus'].filter(w => words.includes(w));
+  if (bait.length) finds.push(['info', 'Oltalamada sık geçen kelimeler: ' + bait.join(', ') + '.']);
+  for (const [k, v] of u.searchParams) if (/^https?:\/\//i.test(v) && /url|redirect|next|goto|target|dest|link|r$/i.test(k)) { finds.push(['warn', 'Yönlendirme var: link sizi başka bir adrese gönderiyor → ' + v.slice(0, 120)]); break; }
+  if (raw.length > 120) finds.push(['info', 'Çok uzun adres. Uzun adresler gerçek alan adını gizlemek için kullanılabilir.']);
+  const level = finds.some(f => f[0] === 'bad') ? 'bad' : finds.some(f => f[0] === 'warn') ? 'warn' : 'ok';
+  if (!finds.length) finds.push(['info', 'Bilinen bir oltalama işareti bulunmadı.']);
+  return { level, host, reg, finds };
+}
+function verdictBox(a) {
+  const t = { ok: ['Belirgin bir tehlike işareti yok', 'Yine de giriş yapmadan önce adres çubuğundaki alan adını kontrol edin.'], warn: ['Dikkat', 'Şüpheli işaretler var. Göndereni tanımıyorsanız açmayın.'], bad: ['Tehlikeli görünüyor', 'Büyük ihtimalle oltalama. Açmayın, bilgi girmeyin.'] }[a.level];
+  return h('div', { class: 'verdict v-' + a.level }, h('span', { class: 'dot' }), h('div', {}, h('b', {}, t[0]), h('div', { class: 'small muted' }, (a.host ? a.host + ' · ' : '') + t[1])));
+}
+const findList = list => h('ul', { class: 'finds' }, list.map(([lv, t]) => h('li', { class: lv }, h('span', {}, t))));
+async function domainAge(domain) {
+  const d = await jfetch('https://rdap.org/domain/' + encodeURIComponent(domain));
+  const ev = (d.events || []).find(e => e.eventAction === 'registration');
+  return ev ? new Date(ev.eventDate) : null;
+}
+function mountLink(main) {
+  const inp = h('textarea', { class: 'input', id: 'lk-in', placeholder: 'Şüpheli linki yapıştırın (SMS, e-posta, WhatsApp…)' }, 'https://paypa1-konto-bestaetigen.xyz/login');
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const run = () => {
+    if (!inp.value.trim()) { res.replaceChildren(); return; }
+    const a = analyzeUrl(inp.value);
+    const ageBtn = a.reg ? h('button', { class: 'btn' }, 'Alan adının yaşını kontrol et') : null;
+    const ageOut = h('div');
+    if (ageBtn) ageBtn.onclick = async () => {
+      ageBtn.disabled = true; ageOut.replaceChildren(h('span', { class: 'small muted' }, 'Sorgulanıyor…'));
+      try {
+        const dt = await domainAge(a.reg);
+        if (!dt) throw new Error('kayıt tarihi yok');
+        const days = Math.floor((Date.now() - dt) / 864e5);
+        ageOut.replaceChildren(findList([[days < 30 ? 'bad' : days < 180 ? 'warn' : 'ok', a.reg + ' ' + dt.toLocaleDateString('tr-TR') + ' tarihinde kaydedilmiş (' + days.toLocaleString('tr-TR') + ' gün önce).' + (days < 30 ? ' Çok yeni! Oltalama siteleri genelde birkaç günlüktür.' : '')]]));
+      } catch (e) { ageOut.replaceChildren(h('p', { class: 'small muted' }, 'Bu alan adı için kayıt bilgisi alınamadı. Bazı ülke uzantıları (.de, .tr gibi) bu bilgiyi açık vermiyor.')); }
+      ageBtn.disabled = false;
+    };
+    res.replaceChildren(verdictBox(a), findList(a.finds), ageBtn, ageOut);
+  };
+  inp.addEventListener('input', run);
+  main.append(h('label', { class: 'lbl', for: 'lk-in' }, 'Link', inp), res,
+    h('div', { class: 'note' }, 'Link açılmaz ve hiçbir yere gönderilmez; sadece metni incelenir (yaş kontrolü hariç). Kontroller kurallara dayalı tahmindir, %100 garanti değildir. QR okuyucu da linkleri açmadan önce bu kontrolden geçirir.'));
+  run();
+}
+
+// -- Domain / e-mail security --
+async function dnsQuery(name, type) {
+  const d = await jfetch('https://dns.google/resolve?name=' + encodeURIComponent(name) + '&type=' + type);
+  return (d.Answer || []).filter(a => a.type === ({ A: 1, NS: 2, CNAME: 5, MX: 15, TXT: 16, AAAA: 28, CAA: 257 })[type]).map(a => a.data.replace(/^"|"$/g, '').replace(/" "/g, ''));
+}
+async function mailSecurity(domain) {
+  const [mx, txt, dmarc] = await Promise.all([dnsQuery(domain, 'MX'), dnsQuery(domain, 'TXT'), dnsQuery('_dmarc.' + domain, 'TXT')]);
+  const finds = [];
+  const spf = txt.find(t => /^v=spf1/i.test(t));
+  const dm = dmarc.find(t => /^v=DMARC1/i.test(t));
+  if (!mx.length) finds.push(['info', 'MX kaydı yok: bu alan adı e-posta almıyor.']);
+  else finds.push(['ok', 'E-posta sunucusu (MX): ' + mx.map(m => m.split(' ').pop().replace(/\.$/, '')).slice(0, 3).join(', ')]);
+  if (!spf) finds.push(['bad', 'SPF yok: herkes bu alan adı adına e-posta göndermeye çalışabilir.']);
+  else if (/-all\b/.test(spf)) finds.push(['ok', 'SPF sıkı (-all): yetkisiz sunuculardan gelen postalar reddedilir.']);
+  else if (/~all\b/.test(spf)) finds.push(['warn', 'SPF yumuşak (~all): yetkisiz postalar sadece işaretlenir.']);
+  else finds.push(['warn', 'SPF var ama zayıf (' + (spf.match(/[?+]all/) || ['sonu belirsiz'])[0] + ').']);
+  if (!dm) finds.push(['bad', 'DMARC yok: sahte e-postalara karşı politika tanımlanmamış.']);
+  else {
+    const p = (dm.match(/\bp=(\w+)/i) || [])[1] || 'none';
+    finds.push([p === 'reject' ? 'ok' : p === 'quarantine' ? 'ok' : 'warn', 'DMARC politikası: ' + p + ({ reject: ' (sahte postalar reddedilir, en iyisi)', quarantine: ' (sahte postalar spama gider)', none: ' (sadece izleniyor, koruma yok)' }[p] || '')]);
+  }
+  const level = finds.some(f => f[0] === 'bad') ? 'bad' : finds.some(f => f[0] === 'warn') ? 'warn' : 'ok';
+  return { level, finds, spf, dmarc: dm };
+}
+function mountDomain(main) {
+  const inp = h('input', { class: 'input mono', id: 'dm-in', placeholder: 'ornek.de', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', value: 'tipico.de' });
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const btn = h('button', { class: 'btn primary block', type: 'submit' }, 'Kontrol et');
+  main.append(h('form', { class: 'card', onsubmit: async e => {
+    e.preventDefault();
+    const dom = inp.value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(dom)) { toast('Geçerli bir alan adı girin, örn. ornek.de'); return; }
+    btn.disabled = true; res.replaceChildren(h('p', { class: 'small muted' }, 'Sorgulanıyor…'));
+    try {
+      const [ms, a, ns, age] = await Promise.all([mailSecurity(dom), dnsQuery(dom, 'A'), dnsQuery(dom, 'NS'), domainAge(dom).catch(() => null)]);
+      const rows = [['IP (A)', a.join(', ') || '—'], ['Ad sunucusu', ns.map(n => n.replace(/\.$/, '')).join(', ') || '—'], ['Kayıt tarihi', age ? age.toLocaleDateString('tr-TR') + ' (' + Math.floor((Date.now() - age) / 864e5).toLocaleString('tr-TR') + ' gün)' : 'açık değil']];
+      res.replaceChildren(
+        h('h2', {}, 'E-posta sahteciliğine karşı koruma'),
+        h('div', { class: 'verdict v-' + ms.level }, h('span', { class: 'dot' }), h('div', {}, h('b', {}, { ok: 'İyi korunuyor', warn: 'Kısmen korunuyor', bad: 'Zayıf koruma' }[ms.level]), h('div', { class: 'small muted' }, dom + ' adına sahte e-posta gönderilmesi ne kadar zor?'))),
+        findList(ms.finds),
+        h('h2', {}, 'Kayıtlar'),
+        h('div', { class: 'kv' }, rows.flatMap(([k, v]) => [h('div', { class: 'k' }, k), h('div', { class: 'v' }, v)])),
+        ms.spf ? out('SPF', ms.spf) : null, ms.dmarc ? out('DMARC', ms.dmarc) : null);
+    } catch (x) { res.replaceChildren(h('p', { class: 'err' }, 'Sorgu başarısız: ' + x.message)); }
+    btn.disabled = false;
+  } }, h('label', { class: 'lbl', for: 'dm-in' }, 'Alan adı', inp), btn), res,
+    h('div', { class: 'note' }, 'Sadece herkese açık DNS ve alan adı kayıtları okunur; hedef siteye hiçbir istek gönderilmez. Bir e-postanın gerçekten o şirketten gelip gelmediğinden şüphelenirseniz, gönderen alan adını burada kontrol edin.'));
+}
+
+// -- Fingerprint --
+async function ipInfo(ip) {
+  const d = await jfetch('https://rdap.org/ip/' + encodeURIComponent(ip));
+  const ent = (d.entities || []).find(e => (e.roles || []).includes('registrant')) || (d.entities || [])[0];
+  const fn = ent && ent.vcardArray ? (ent.vcardArray[1].find(v => v[0] === 'fn') || [])[3] : null;
+  return { name: d.name || '', org: fn || '', country: d.country || '', range: d.startAddress && d.endAddress ? d.startAddress + ' – ' + d.endAddress : '' };
+}
+async function myIp() { return (await jfetch('https://api.ipify.org?format=json')).ip; }
+function mountFingerprint(main) {
+  const kv = h('div', { class: 'kv' });
+  const rows = [];
+  const draw = () => kv.replaceChildren(...rows.flatMap(([k, v]) => [h('div', { class: 'k' }, k), h('div', { class: 'v' }, v)]));
+  const add = (k, v) => { rows.push([k, v]); draw(); };
+  add('IP adresi', 'sorgulanıyor…');
+  const nav = navigator;
+  add('Tarayıcı', nav.userAgent);
+  add('Dil', (nav.languages || [nav.language]).join(', '));
+  add('Saat dilimi', Intl.DateTimeFormat().resolvedOptions().timeZone);
+  add('Ekran', screen.width + '×' + screen.height + ' @' + devicePixelRatio + 'x');
+  add('İşlemci çekirdeği', String(nav.hardwareConcurrency || '—'));
+  add('Dokunmatik', nav.maxTouchPoints ? nav.maxTouchPoints + ' nokta' : 'yok');
+  try {
+    const gl = document.createElement('canvas').getContext('webgl');
+    const ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    add('Grafik işlemci', gl ? (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) : '—');
+  } catch {}
+  (async () => {
+    const c = document.createElement('canvas'); c.width = 240; c.height = 60; const g = c.getContext('2d');
+    g.textBaseline = 'top'; g.font = '16px Arial'; g.fillStyle = '#f60'; g.fillRect(100, 1, 62, 20); g.fillStyle = '#069'; g.fillText('Cep Zero ğüşiöç 😀', 2, 15);
+    add('Canvas izi', hexOf(await crypto.subtle.digest('SHA-256', te.encode(c.toDataURL()))).slice(0, 16));
+  })();
+  (async () => {
+    try {
+      const ip = await myIp(); rows[0] = ['IP adresi', ip]; draw();
+      const info = await ipInfo(ip);
+      add('İnternet sağlayıcı', [info.org, info.name].filter(Boolean).join(' · ') || '—');
+      if (info.country) add('Ülke', info.country);
+    } catch { rows[0] = ['IP adresi', 'alınamadı']; draw(); }
+  })();
+  main.append(
+    h('div', { class: 'note' }, 'Ziyaret ettiğiniz her web sitesi bunları izin istemeden görebilir. Bu bilgilerin birleşimi ("parmak izi") çerez olmadan da sizi tanımak için kullanılabilir.'),
+    kv,
+    h('h2', {}, 'Nasıl azaltılır'),
+    findList([['info', 'Safari Ayarlar → Gizlilik ve Güvenlik: "Siteler arası izlemeyi engelle" ve "IP adresini gizle" açık olsun.'],
+      ['info', 'iCloud+ varsa Özel Geçiş (Private Relay) IP adresinizi gizler.'],
+      ['info', 'Halka açık Wi-Fi\'da güvenilir bir VPN kullanın.']]));
+}
+
+// -- EXIF --
+/** Minimal EXIF reader for JPEG (IFD0, Exif and GPS sub-IFDs). */
+function readExif(buf) {
+  const v = new DataView(buf);
+  if (v.byteLength < 4 || v.getUint16(0) !== 0xFFD8) return null;
+  let off = 2;
+  while (off + 4 <= v.byteLength) {
+    const marker = v.getUint16(off), len = v.getUint16(off + 2);
+    if (marker === 0xFFE1 && v.getUint32(off + 4) === 0x45786966) return parseTiff(v, off + 10);
+    if (marker === 0xFFDA || (marker & 0xFF00) !== 0xFF00) break;
+    off += 2 + len;
+  }
+  return {};
+}
+function parseTiff(v, t) {
+  const le = v.getUint16(t) === 0x4949;
+  const u16 = o => v.getUint16(o, le), u32 = o => v.getUint32(o, le);
+  const out = {};
+  const readIfd = (ifd, map) => {
+    if (!ifd || t + ifd + 2 > v.byteLength) return;
+    const n = u16(t + ifd);
+    for (let i = 0; i < n; i++) {
+      const e = t + ifd + 2 + i * 12; if (e + 12 > v.byteLength) break;
+      const tag = u16(e), type = u16(e + 2), count = u32(e + 4);
+      const size = ({ 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 }[type] || 1) * count;
+      const vo = size > 4 ? t + u32(e + 8) : e + 8;
+      if (vo + size > v.byteLength) continue;
+      let val;
+      if (type === 2) { val = ''; for (let k = 0; k < count - 1; k++) val += String.fromCharCode(v.getUint8(vo + k)); val = val.trim(); }
+      else if (type === 3) val = count === 1 ? u16(vo) : Array.from({ length: count }, (_, k) => u16(vo + 2 * k));
+      else if (type === 4) val = u32(vo);
+      else if (type === 5) val = Array.from({ length: count }, (_, k) => u32(vo + 8 * k) / (u32(vo + 8 * k + 4) || 1));
+      else if (type === 1 || type === 7) val = Array.from({ length: Math.min(count, 8) }, (_, k) => v.getUint8(vo + k));
+      if (map[tag]) out[map[tag]] = val;
+    }
+  };
+  const IFD0 = { 0x010F: 'Make', 0x0110: 'Model', 0x0131: 'Software', 0x0132: 'DateTime', 0x8769: 'ExifIFD', 0x8825: 'GPSIFD' };
+  readIfd(u32(t + 4), IFD0);
+  readIfd(out.ExifIFD, { 0x9003: 'DateTimeOriginal', 0xA434: 'LensModel', 0x9010: 'OffsetTime' });
+  readIfd(out.GPSIFD, { 1: 'GPSLatitudeRef', 2: 'GPSLatitude', 3: 'GPSLongitudeRef', 4: 'GPSLongitude', 6: 'GPSAltitude' });
+  if (out.GPSLatitude && out.GPSLongitude) {
+    const dd = a => a[0] + a[1] / 60 + a[2] / 3600;
+    out.lat = dd(out.GPSLatitude) * (out.GPSLatitudeRef === 'S' ? -1 : 1);
+    out.lon = dd(out.GPSLongitude) * (out.GPSLongitudeRef === 'W' ? -1 : 1);
+  }
+  delete out.ExifIFD; delete out.GPSIFD;
+  return out;
+}
+/** Removes metadata segments (APP1 Exif/XMP, APP13 IPTC) from a JPEG without re-encoding. */
+function stripJpeg(buf) {
+  const v = new DataView(buf), keep = [new Uint8Array(buf, 0, 2)];
+  let off = 2;
+  while (off + 4 <= v.byteLength) {
+    const marker = v.getUint16(off);
+    if (marker === 0xFFDA) { keep.push(new Uint8Array(buf, off)); break; }
+    const len = v.getUint16(off + 2);
+    if (marker !== 0xFFE1 && marker !== 0xFFED && marker !== 0xFFFE) keep.push(new Uint8Array(buf, off, 2 + len));
+    off += 2 + len;
+  }
+  return new Blob(keep, { type: 'image/jpeg' });
+}
+function mountExif(main) {
+  const file = h('input', { type: 'file', id: 'ex-file', accept: 'image/*', class: 'input' });
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  file.onchange = async () => {
+    const f = file.files[0]; if (!f) return;
+    const buf = await f.arrayBuffer();
+    const ex = readExif(buf);
+    if (ex === null) { res.replaceChildren(h('div', { class: 'note' }, 'Bu dosya JPEG değil (' + (f.type || 'bilinmeyen tür') + '). Meta veri okuma şu an sadece JPEG için çalışıyor.')); return; }
+    const labels = { Make: 'Üretici', Model: 'Model', LensModel: 'Lens', Software: 'Yazılım', DateTimeOriginal: 'Çekim tarihi', DateTime: 'Değişiklik tarihi', GPSAltitude: 'Rakım (m)' };
+    const rows = Object.entries(labels).filter(([k]) => ex[k] != null).map(([k, l]) => [l, Array.isArray(ex[k]) ? num(ex[k][0], 0) : String(ex[k])]);
+    const hasGps = ex.lat != null;
+    if (hasGps) rows.unshift(['Konum', ex.lat.toFixed(5) + ', ' + ex.lon.toFixed(5)]);
+    const clean = stripJpeg(buf);
+    const cleanFile = new File([clean], f.name.replace(/\.\w+$/, '') + '-temiz.jpg', { type: 'image/jpeg' });
+    const url = URL.createObjectURL(clean);
+    res.replaceChildren(
+      h('div', { class: 'verdict v-' + (hasGps ? 'bad' : rows.length ? 'warn' : 'ok') }, h('span', { class: 'dot' }), h('div', {},
+        h('b', {}, hasGps ? 'Fotoğrafta konum bilgisi var!' : rows.length ? 'Konum yok, ama cihaz bilgisi var' : 'Meta veri bulunamadı'),
+        h('div', { class: 'small muted' }, hasGps ? 'Bu fotoğrafı paylaştığınız kişi çekildiği yeri metre hassasiyetinde görebilir.' : 'iPhone fotoğraf seçerken konumu bazen kendisi çıkarır.'))),
+      rows.length ? h('div', { class: 'kv' }, rows.flatMap(([k, v]) => [h('div', { class: 'k' }, k), h('div', { class: 'v' }, v)])) : null,
+      hasGps ? h('a', { class: 'btn', href: 'https://maps.apple.com/?ll=' + ex.lat + ',' + ex.lon + '&q=Foto%C4%9Fraf', target: '_blank', rel: 'noopener' }, 'Konumu haritada gör') : null,
+      h('h2', {}, 'Temizlenmiş kopya'),
+      h('img', { src: url, alt: 'Temizlenmiş fotoğraf', style: 'width:100%;border-radius:12px' }),
+      h('p', { class: 'small muted' }, 'Konum, cihaz ve tarih bilgisi silindi; görüntü kalitesi değişmedi. ' + num(f.size / 1024, 0) + ' KB → ' + num(clean.size / 1024, 0) + ' KB'),
+      h('button', { class: 'btn primary block', onclick: async () => {
+        if (navigator.canShare && navigator.canShare({ files: [cleanFile] })) { try { await navigator.share({ files: [cleanFile] }); } catch {} }
+        else toast('Görsele basılı tutup "Fotoğraflara Ekle" deyin');
+      } }, 'Temiz fotoğrafı paylaş / kaydet'));
+  };
+  main.append(h('label', { class: 'lbl', for: 'ex-file' }, 'Fotoğraf seçin', file), res,
+    h('div', { class: 'note' }, 'Fotoğraf telefondan çıkmaz, her şey cihazda yapılır. İpucu: Fotoğraflar\'dan paylaşırken üstteki "Seçenekler"e dokunup "Konum"u kapatabilirsiniz.'), SEC_NOTE());
+}
+
+// -- Invisible chars --
+const INVIS = { 0x200B: 'sıfır genişlikli boşluk', 0x200C: 'ZWNJ', 0x200D: 'ZWJ', 0x2060: 'kelime birleştirici', 0xFEFF: 'BOM', 0x00AD: 'yumuşak tire', 0x200E: 'LTR işareti', 0x200F: 'RTL işareti',
+  0x202A: 'LRE', 0x202B: 'RLE', 0x202C: 'PDF', 0x202D: 'LRO', 0x202E: 'ters yazı (RLO)', 0x2066: 'LRI', 0x2067: 'RLI', 0x2068: 'FSI', 0x2069: 'PDI', 0x00A0: 'bölünmez boşluk', 0x180E: 'Moğol ünlü ayırıcı', 0x3164: 'Hangul dolgu' };
+function scanInvisible(text) {
+  const hits = []; let clean = '';
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    if (INVIS[cp] || (cp >= 0xE0000 && cp <= 0xE007F)) { hits.push({ cp, name: INVIS[cp] || 'etiket karakteri (gizli ASCII: "' + (cp >= 0xE0020 && cp <= 0xE007E ? String.fromCharCode(cp - 0xE0000) : '?') + '")' }); if (cp === 0x00A0) clean += ' '; }
+    else clean += ch;
+  }
+  const words = text.split(/\s+/).filter(w => /[a-z]/i.test(w) && /[Ѐ-ӿͰ-Ͽ]/.test(w));
+  const tagMsg = [...text].map(c => c.codePointAt(0)).filter(c => c >= 0xE0020 && c <= 0xE007E).map(c => String.fromCharCode(c - 0xE0000)).join('');
+  return { hits, clean, mixed: words, tagMsg };
+}
+function mountInvisible(main) {
+  const inp = h('textarea', { class: 'input', id: 'iv-in', placeholder: 'Mesajı veya dosya adını yapıştırın' }, 'fatura_2026‮fdp.exe');
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const run = () => {
+    const r = scanInvisible(inp.value);
+    const counts = {}; r.hits.forEach(x => (counts[x.name] = (counts[x.name] || 0) + 1));
+    const finds = Object.entries(counts).map(([n, c]) => [n.startsWith('ters') || n.startsWith('etiket') ? 'bad' : 'warn', c + ' × ' + n]);
+    if (counts['ters yazı (RLO)']) finds.unshift(['bad', 'Ters yazı hilesi! Ekranda göründüğü gibi değil; gerçek dosya uzantısı farklı olabilir (ör. .exe görünüp .pdf gibi durur).']);
+    if (r.tagMsg) finds.unshift(['bad', 'Görünmez gizli mesaj bulundu: "' + r.tagMsg + '". Bu teknik yapay zekâ asistanlarını kandırmak için de kullanılıyor.']);
+    if (r.mixed.length) finds.push(['bad', 'Latin ve Kiril/Yunan harfleri karışık kelimeler: ' + r.mixed.slice(0, 5).join(', ')]);
+    const vis = h('div', { class: 'out' }, h('div', { class: 'h' }, 'Görünür hali'), h('div', { class: 't' }, [...inp.value].map(ch => { const cp = ch.codePointAt(0); return INVIS[cp] || (cp >= 0xE0000 && cp <= 0xE007F) ? h('span', { class: 'mark' }, 'U+' + cp.toString(16).toUpperCase()) : ch; })));
+    res.replaceChildren(
+      h('div', { class: 'verdict v-' + (finds.some(f => f[0] === 'bad') ? 'bad' : finds.length ? 'warn' : 'ok') }, h('span', { class: 'dot' }), h('div', {}, h('b', {}, finds.length ? r.hits.length + ' gizli karakter bulundu' : 'Gizli karakter yok'))),
+      finds.length ? findList(finds) : null, finds.length ? vis : null, finds.length ? out('Temizlenmiş metin', r.clean) : null);
+  };
+  inp.addEventListener('input', run);
+  main.append(h('label', { class: 'lbl', for: 'iv-in' }, 'Metin', inp), res,
+    h('div', { class: 'note' }, 'Görünmez karakterler metni kopyalayan kişiyi izlemek (filigran), filtreleri atlatmak veya dosya adlarını sahte göstermek için kullanılır. Örnek metin ters yazı hilesi içeriyor.'));
+  run();
+}
+
+// -- Terminal --
+function mountTerminal(main) {
+  const term = h('div', { class: 'term', role: 'log', 'aria-live': 'polite' });
+  const inp = h('input', { id: 'term-in', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', autocomplete: 'off', enterkeyhint: 'send', 'aria-label': 'Komut' });
+  const hist = jget('term-hist', []); let hi = hist.length;
+  const print = (text, cls) => { term.append(h('div', { class: cls || '' }, text)); window.scrollTo(0, document.body.scrollHeight); };
+  const HELP = [
+    ['pwned <şifre>', 'şifre sızıntılarda var mı + kırılma süresi'], ['url <link>', 'oltalama analizi'], ['mail <alan>', 'SPF / DMARC kontrolü'],
+    ['dns <alan> [tür]', 'DNS kaydı (A, AAAA, MX, TXT, NS, CAA)'], ['whois <alan>', 'alan adı kayıt tarihi'], ['myip', 'IP adresin'],
+    ['ip <adres>', 'IP kime ait'], ['hash <metin>', 'SHA-256 ve SHA-1'], ['b64 / unb64 <metin>', 'Base64 kodla / çöz'], ['gizli <metin>', 'görünmez karakter tara'], ['clear', 'ekranı temizle'],
+  ];
+  const cmds = {
+    help: () => HELP.forEach(([c, d]) => print(c.padEnd(20) + d, 'dim')),
+    clear: () => term.replaceChildren(),
+    myip: async () => print(await myIp()),
+    ip: async a => { const ip = a[0] || await myIp(); const i = await ipInfo(ip); print(ip + '\n  sahip : ' + (i.org || '—') + '\n  ağ    : ' + (i.name || '—') + '\n  ülke  : ' + (i.country || '—') + '\n  aralık: ' + (i.range || '—')); },
+    dns: async a => { if (!a[0]) throw new Error('kullanım: dns <alan> [tür]'); const ty = (a[1] || 'A').toUpperCase(); const r = await dnsQuery(a[0], ty); print(r.length ? r.map(x => ty + '  ' + x).join('\n') : 'kayıt yok'); },
+    whois: async a => { if (!a[0]) throw new Error('kullanım: whois <alan>'); const d = await domainAge(a[0]).catch(() => null); print(d ? a[0] + ' kayıt: ' + d.toLocaleDateString('tr-TR') + ' (' + Math.floor((Date.now() - d) / 864e5) + ' gün önce)' : 'kayıt tarihi açık değil (.de, .tr gibi uzantılar vermiyor)'); },
+    mail: async a => { if (!a[0]) throw new Error('kullanım: mail <alan>'); const r = await mailSecurity(a[0]); r.finds.forEach(([lv, t]) => print((lv === 'ok' ? '[+] ' : lv === 'bad' ? '[!] ' : '[?] ') + t, lv === 'bad' ? 'err' : '')); },
+    url: async a => { if (!a[0]) throw new Error('kullanım: url <link>'); const r = analyzeUrl(a.join(' ')); print('sonuç: ' + { ok: 'temiz görünüyor', warn: 'DİKKAT', bad: 'TEHLİKELİ' }[r.level], r.level === 'bad' ? 'err' : ''); r.finds.forEach(([lv, t]) => print('  ' + (lv === 'ok' ? '[+] ' : lv === 'bad' ? '[!] ' : lv === 'warn' ? '[?] ' : '[i] ') + t, lv === 'bad' ? 'err' : 'dim')); },
+    pwned: async a => { if (!a[0]) throw new Error('kullanım: pwned <şifre>'); const pw = a.join(' '); const c = await pwnedCount(pw); const st = pwStrength(pw); print(c ? '[!] ' + c.toLocaleString('tr-TR') + ' kez sızdırılmış. KULLANMAYIN.' : '[+] bilinen sızıntılarda yok', c ? 'err' : ''); print('    güç: ' + st.bits + ' bit, kırılma: ' + humanTime(st.secs), 'dim'); st.issues.forEach(i => print('    [?] ' + i, 'dim')); },
+    hash: async a => { const t = a.join(' '); print('sha256 ' + hexOf(await crypto.subtle.digest('SHA-256', te.encode(t)))); print('sha1   ' + hexOf(await crypto.subtle.digest('SHA-1', te.encode(t))), 'dim'); },
+    b64: async a => { let bin = ''; for (const b of te.encode(a.join(' '))) bin += String.fromCharCode(b); print(btoa(bin)); },
+    unb64: async a => print(new TextDecoder().decode(Uint8Array.from(atob(a.join('')), c => c.charCodeAt(0)))),
+    gizli: async a => { const r = scanInvisible(a.join(' ')); print(r.hits.length ? r.hits.length + ' gizli karakter: ' + [...new Set(r.hits.map(x => x.name))].join(', ') : 'gizli karakter yok'); if (r.tagMsg) print('[!] gizli mesaj: ' + r.tagMsg, 'err'); },
+  };
+  async function exec(line) {
+    line = line.trim(); if (!line) return;
+    hist.push(line); if (hist.length > 50) hist.shift(); jset('term-hist', hist); hi = hist.length;
+    const [c, ...args] = line.split(/\s+/);
+    print('$ ' + (c === 'pwned' ? 'pwned ' + '•'.repeat(args.join(' ').length) : line), 'cmd');
+    const fn = cmds[c.toLowerCase()];
+    if (!fn) return print('komut bulunamadı: ' + c + '  (yardım için: help)', 'err');
+    try { await fn(args); } catch (e) { print('hata: ' + e.message, 'err'); }
+  }
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { const v = inp.value; inp.value = ''; exec(v); }
+    if (e.key === 'ArrowUp' && hi > 0) { inp.value = hist[--hi]; e.preventDefault(); }
+    if (e.key === 'ArrowDown') { hi = Math.min(hist.length, hi + 1); inp.value = hist[hi] || ''; e.preventDefault(); }
+  });
+  const quick = h('div', { class: 'row' }, ['help', 'myip', 'mail google.com', 'url bit.ly/x'].map(q => h('button', { class: 'copy', style: 'flex:0 0 auto', onclick: () => exec(q) }, q)));
+  main.append(term, h('div', { class: 'term-in' }, h('span', {}, '$'), inp), quick, SEC_NOTE());
+  print('CEP ZERO güvenlik terminali  v1.0', 'cmd');
+  print('Sadece savunma ve kendi verin için. Komutlar için: help\n', 'dim');
+}
 
 // ---------- Para: value bet + bahis defteri ----------
 const MONEY = [
