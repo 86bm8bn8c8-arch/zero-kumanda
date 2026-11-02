@@ -105,7 +105,7 @@ p { margin: 0; }
   border: 1px solid var(--line); background: var(--bg);
 }
 textarea.input { min-height: 96px; resize: vertical; font-family: var(--font-mono); font-size: 14px; }
-label.lbl { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
+.lbl { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
 .chk { display: flex; align-items: center; gap: 10px; min-height: 40px; }
 .chk input { width: 22px; height: 22px; accent-color: var(--accent); }
@@ -162,6 +162,8 @@ video.cam { width: 100%; max-width: 100%; aspect-ratio: 3 / 4; object-fit: cover
 .dpad .c { grid-area: 2 / 2; background: var(--accent); }
 .dpad .c svg { stroke: var(--on-accent); }
 
+.lamp { position: fixed; inset: 0; z-index: 60; display: grid; place-items: end center; padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+.lamp span { font-size: 13px; color: rgba(0,0,0,.45); }
 .flash { position: fixed; inset: 0; z-index: 40; background: #fff; pointer-events: none; }
 .bet { display: grid; gap: 10px; }
 .bet .head { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
@@ -283,6 +285,13 @@ const ICON = {
   photo: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/>',
   ghost: '<path d="M5 20V10a7 7 0 0114 0v10l-2.5-2-2.3 2-2.2-2-2.2 2-2.3-2z"/><circle cx="9.5" cy="10" r="1"/><circle cx="14.5" cy="10" r="1"/>',
   term: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/>',
+  split: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+  timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6M12 2v3"/>',
+  bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0012 3z"/>',
+  ruler: '<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
+  lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3M12 14v3"/>',
+  bank: '<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18"/>',
+  braces: '<path d="M8 3H7a2 2 0 00-2 2v4l-2 3 2 3v4a2 2 0 002 2h1M16 3h1a2 2 0 012 2v4l2 3-2 3v4a2 2 0 01-2 2h-1"/>',
   radio: '<path d="M4.9 19.1a10 10 0 010-14.2M19.1 4.9a10 10 0 010 14.2M8 16a5 5 0 010-8M16 8a5 5 0 010 8"/><circle cx="12" cy="12" r="1.5"/>',
 };
 const icon = n => h('span', { class: 'ic', html: '<svg viewBox="0 0 24 24">' + ICON[n] + '</svg>' });
@@ -298,6 +307,7 @@ const TOOLS = [
   { id: 'terazi', icon: 'level', name: 'Terazi ve pusula', desc: 'Telefon sensörleriyle eğim ve yön', mount: mountLevel },
   { id: 'gps', icon: 'gps', name: 'GPS', desc: 'Konum, rakım, hız ve doğruluk', mount: mountGps },
   { id: 'kod', icon: 'code', name: 'Kodlayıcı', desc: 'Base64, Hex, ikili, URL, SHA-256', mount: mountCoder },
+  { id: 'gelistirici', icon: 'braces', name: 'Geliştirici kutusu', desc: 'JSON biçimlendir, JWT çöz, Unix zaman, UUID', mount: mountDev },
   { id: 'sifre', icon: 'key', name: 'Şifre üreteci', desc: 'Güçlü, rastgele şifreler', mount: mountPassword },
   { id: 'yilan', icon: 'snake', name: 'Yılan', desc: 'Piksel ekranda klasik yılan oyunu', mount: mountSnake },
 ];
@@ -313,7 +323,7 @@ let cleanup = null;
 function route() {
   if (cleanup) { try { cleanup(); } catch {} cleanup = null; }
   const id = location.hash.slice(1);
-  const tool = [...SEC, ...MONEY, ...TOOLS].find(t => t.id === id);
+  const tool = [...SEC, ...MONEY, ...DAILY, ...TOOLS].find(t => t.id === id);
   const main = $('#main');
   main.replaceChildren();
   window.scrollTo(0, 0);
@@ -332,6 +342,8 @@ function renderMenu(main) {
     h('div', { class: 'menu' }, SEC.map(menuItem)),
     h('h2', {}, 'Para'),
     h('div', { class: 'menu' }, MONEY.map(menuItem)),
+    h('h2', {}, 'Gündelik'),
+    h('div', { class: 'menu' }, DAILY.map(menuItem)),
     h('h2', {}, 'Araçlar'),
     h('div', { class: 'menu' }, TOOLS.map(t => h('button', { class: 'mi', onclick: () => (location.hash = t.id) }, icon(t.icon), h('div', {}, h('b', {}, t.name), h('span', {}, t.desc)), h('span', { class: 'arr' }, '›')))),
     h('h2', {}, 'Bu telefonda yapılamayanlar'),
@@ -866,6 +878,8 @@ const SEC = [
   { id: 'iz', icon: 'eye', name: 'Dijital izin', desc: 'IP adresin ve sitelerin seni tanıdığı bilgiler', mount: mountFingerprint },
   { id: 'exif', icon: 'photo', name: 'Fotoğraf meta veri', desc: 'Fotoğrafta gizli konum var mı, temizle', mount: mountExif },
   { id: 'gorunmez', icon: 'ghost', name: 'Görünmez karakterler', desc: 'Metne gizlenmiş karakterleri ve ters yazı hilesini bul', mount: mountInvisible },
+  { id: 'sifreli', icon: 'lock', name: 'Şifreli mesaj', desc: 'Mesajı şifreyle kilitle, sadece şifreyi bilen okusun', mount: mountCrypt },
+  { id: 'iban', icon: 'bank', name: 'IBAN kontrolü', desc: 'IBAN doğru mu, hangi ülke ve banka', mount: mountIban },
 ];
 const SEC_NOTE = () => h('div', { class: 'note' }, 'Bu araçlar savunma amaçlıdır: kendi şifreleriniz, kendi cihazınız, size gelen linkler ve herkese açık kayıtlar. Başkasının sistemine izinsiz girmeye çalışmak Almanya\'da StGB §202a–c, Türkiye\'de TCK 243–245 kapsamında suçtur.');
 const te = new TextEncoder();
@@ -1558,6 +1572,357 @@ function mountLedger(main) {
   }
   main.append(statsBox, h('h2', {}, 'Bahisler'), listBox, form, tools);
   draw();
+}
+
+// ---------- Gündelik ----------
+const DAILY = [
+  { id: 'hesap', icon: 'split', name: 'Hesap bölüştür', desc: 'Restoran hesabı, bahşiş ve kişi başı tutar', mount: mountSplit },
+  { id: 'zaman', icon: 'timer', name: 'Kronometre ve sayaç', desc: 'Tur zamanlı kronometre, sesli geri sayım', mount: mountTimer },
+  { id: 'isik', icon: 'bulb', name: 'Ekran ışığı', desc: 'Ekranı lamba yap: beyaz, sıcak, kırmızı, SOS', mount: mountLight },
+  { id: 'birim', icon: 'ruler', name: 'Birim çevirici', desc: 'Uzunluk, ağırlık, sıcaklık, hacim, hız, alan, veri', mount: mountUnits },
+];
+function segCtl(opts, val, onChange) {
+  const btns = opts.map(([v, label]) => {
+    const b = h('button', { type: 'button', 'aria-pressed': String(v === val) }, label);
+    b.onclick = () => { btns.forEach(x => x.setAttribute('aria-pressed', String(x === b))); onChange(v); };
+    return b;
+  });
+  return h('div', { class: 'seg', role: 'group' }, btns);
+}
+const parseNum = s => { s = String(s).replace(/[\s€]/g, ''); if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); return s === '' ? NaN : Number(s); };
+const nf = (n, d = 2) => n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const kvRows = rows => rows.flatMap(([k, v]) => [h('div', { class: 'k' }, k), h('div', { class: 'v' }, v)]);
+async function keepAwake() { try { return await navigator.wakeLock.request('screen'); } catch { return null; } }
+
+function mountSplit(main) {
+  const total = h('input', { class: 'input', id: 'sp-total', type: 'text', inputmode: 'decimal', placeholder: '0,00 €' });
+  const people = h('input', { class: 'input', id: 'sp-people', type: 'text', inputmode: 'numeric', value: '2', style: 'text-align:center' });
+  const customTip = h('input', { class: 'input', id: 'sp-tip', type: 'text', inputmode: 'decimal', placeholder: 'Bahşiş %', hidden: true });
+  const round = h('input', { type: 'checkbox', id: 'sp-round' });
+  const res = h('div', { class: 'lcd' }), kv = h('div', { class: 'kv' });
+  let tip = 10;
+  function calc() {
+    const t = Math.max(0, parseNum(total.value) || 0), n = Math.max(1, Math.floor(parseNum(people.value)) || 1);
+    const pct = tip === 'x' ? Math.max(0, parseNum(customTip.value) || 0) : tip;
+    let tipAmt = t * pct / 100, sum = t + tipAmt, each = sum / n;
+    if (round.checked && t > 0) { each = Math.ceil(each); sum = each * n; tipAmt = sum - t; }
+    res.replaceChildren(h('div', { class: 'small' }, 'Kişi başı'), h('div', { class: 'xl' }, nf(each) + ' €'));
+    kv.replaceChildren(...kvRows([['Hesap', nf(t) + ' €'], ['Bahşiş', nf(tipAmt) + ' € (%' + nf(t ? tipAmt / t * 100 : 0, 1) + ')'], ['Toplam', nf(sum) + ' €'], ['Kişi sayısı', String(n)]]));
+  }
+  const step = d => { people.value = String(Math.max(1, (Math.floor(parseNum(people.value)) || 1) + d)); calc(); };
+  [total, people, customTip].forEach(i => i.addEventListener('input', calc));
+  round.addEventListener('change', calc);
+  main.append(
+    h('label', { class: 'lbl', for: 'sp-total' }, 'Hesap tutarı', total),
+    h('label', { class: 'lbl', for: 'sp-people' }, 'Kişi sayısı',
+      h('div', { style: 'display:grid;grid-template-columns:56px 1fr 56px;gap:8px' }, h('button', { class: 'btn', 'aria-label': 'Azalt', onclick: () => step(-1) }, '−'), people, h('button', { class: 'btn', 'aria-label': 'Artır', onclick: () => step(1) }, '+'))),
+    h('div', { class: 'lbl' }, 'Bahşiş', segCtl([[0, 'Yok'], [5, '%5'], [10, '%10'], [15, '%15'], ['x', 'Diğer']], 10, v => { tip = v; customTip.hidden = v !== 'x'; calc(); })),
+    customTip,
+    h('label', { class: 'chk', for: 'sp-round' }, round, 'Kişi başını tam euroya yuvarla'),
+    res, kv,
+    h('div', { class: 'note' }, 'Almanya\'da bahşiş genelde %5–10\'dur; hesabı yukarı yuvarlayıp "Stimmt so" demek yaygındır.'));
+  calc();
+}
+
+function mountTimer(main) {
+  let mode = 'sw', lock = null;
+  const disp = h('div', { class: 'xl' }), lcd = h('div', { class: 'lcd', style: 'text-align:center' }, disp);
+  const box = h('div', { style: 'display:grid;gap:12px' });
+  const fmt = (ms, tenths = true) => { ms = Math.max(0, ms); const hh = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60, d = Math.floor(ms / 100) % 10; return (hh ? hh + ':' : '') + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + (tenths ? '.' + d : ''); };
+  let swStart = 0, swAcc = 0, swRun = false, laps = [];
+  let cdEnd = 0, cdSet = 5 * 60000, cdLeft = cdSet, cdRun = false;
+  const syncAwake = async () => {
+    const want = swRun || cdRun;
+    if (want && !lock) lock = await keepAwake();
+    else if (!want && lock) { lock.release().catch(() => {}); lock = null; }
+  };
+  function ring() {
+    const a = audio(), t0 = a.currentTime;
+    for (let i = 0; i < 6; i++) {
+      const o = a.createOscillator(), g = a.createGain(), t = t0 + i * 0.4;
+      o.frequency.value = 880; o.connect(g).connect(a.destination);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+      o.start(t); o.stop(t + 0.32);
+    }
+    navigator.vibrate?.([300, 100, 300]);
+    lcd.animate?.([{ filter: 'invert(1)' }, { filter: 'none' }], { duration: 400, iterations: 6 });
+    toast('Süre doldu!');
+  }
+  function tick() {
+    if (cdRun && cdEnd - Date.now() <= 0) { cdRun = false; cdLeft = 0; ring(); syncAwake(); if (mode === 'cd') renderCd(); }
+    disp.textContent = mode === 'sw' ? fmt(swAcc + (swRun ? Date.now() - swStart : 0)) : fmt(Math.ceil((cdRun ? cdEnd - Date.now() : cdLeft) / 1000) * 1000, false);
+  }
+  const lapList = h('div', { class: 'kv' });
+  function renderSw() {
+    const start = h('button', { class: 'btn primary', onclick: () => { if (swRun) { swAcc += Date.now() - swStart; swRun = false; } else { swStart = Date.now(); swRun = true; } syncAwake(); renderSw(); } }, swRun ? 'Durdur' : swAcc ? 'Devam' : 'Başlat');
+    const lap = h('button', { class: 'btn', onclick: () => { if (swRun) laps.unshift(swAcc + Date.now() - swStart); else { swAcc = 0; laps = []; } renderSw(); tick(); } }, swRun ? 'Tur' : 'Sıfırla');
+    lap.disabled = !swRun && !swAcc;
+    lapList.hidden = !laps.length;
+    lapList.replaceChildren(...kvRows(laps.map((t, i) => ['Tur ' + (laps.length - i), fmt(t - (laps[i + 1] || 0)) + ' · ' + fmt(t)])));
+    box.replaceChildren(h('div', { class: 'row' }, lap, start), lapList);
+  }
+  const minIn = h('input', { class: 'input', id: 'tm-min', type: 'text', inputmode: 'decimal', placeholder: 'Dakika' });
+  const setCd = ms => { cdSet = cdLeft = ms; cdRun = false; syncAwake(); renderCd(); tick(); };
+  function renderCd() {
+    const start = h('button', { class: 'btn primary', onclick: () => {
+      audio();
+      if (cdRun) { cdLeft = cdEnd - Date.now(); cdRun = false; }
+      else { if (cdLeft <= 0) cdLeft = cdSet; cdEnd = Date.now() + cdLeft; cdRun = true; }
+      syncAwake(); renderCd();
+    } }, cdRun ? 'Durdur' : 'Başlat');
+    box.replaceChildren(
+      h('div', { style: 'display:grid;grid-template-columns:repeat(3,1fr);gap:8px' }, [1, 3, 5, 10, 15, 25].map(m => h('button', { class: 'btn', onclick: () => setCd(m * 60000) }, m + ' dk'))),
+      h('div', { class: 'row' }, minIn, h('button', { class: 'btn', onclick: () => { const m = parseNum(minIn.value); if (m > 0) setCd(Math.round(m * 60000)); else toast('Dakika girin'); } }, 'Ayarla')),
+      h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => setCd(cdSet) }, 'Sıfırla'), start),
+      h('p', { class: 'small muted' }, 'Ekran açık kalmalı. Sayfa kapanırsa veya telefon kilitlenirse alarm çalmaz.'));
+  }
+  main.append(segCtl([['sw', 'Kronometre'], ['cd', 'Geri sayım']], 'sw', v => { mode = v; v === 'sw' ? renderSw() : renderCd(); tick(); }), lcd, box);
+  renderSw(); tick();
+  const iv = setInterval(tick, 50);
+  return () => { clearInterval(iv); swRun = cdRun = false; syncAwake(); };
+}
+
+function mountLight(main) {
+  let lock = null, timer = null;
+  const hint = h('span', {}, 'Kapatmak için dokunun');
+  const ov = h('div', { class: 'lamp', hidden: true, onclick: () => off() }, hint);
+  document.body.append(ov);
+  const sosSeq = (u = 220) => {
+    const s = [];
+    for (const ch of ['...', '---', '...']) { for (const c of ch) s.push([1, c === '.' ? u : 3 * u], [0, u]); s[s.length - 1][1] = 3 * u; }
+    s[s.length - 1][1] = 7 * u;
+    return s;
+  };
+  async function on(color, sos) {
+    ov.style.background = color; ov.hidden = false;
+    if (sos) { const seq = sosSeq(); let i = 0; const step = () => { const [lit, dur] = seq[i++ % seq.length]; ov.style.background = lit ? '#fff' : '#000'; timer = setTimeout(step, dur); }; step(); }
+    if (!lock) lock = await keepAwake();
+  }
+  function off() { clearTimeout(timer); timer = null; ov.hidden = true; lock?.release().catch(() => {}); lock = null; }
+  const pick = h('input', { type: 'color', id: 'li-color', value: '#ffb000', style: 'width:100%;height:46px;border:1px solid var(--line);border-radius:11px;background:var(--bg)' });
+  main.append(
+    h('div', { style: 'display:grid;grid-template-columns:repeat(2,1fr);gap:8px' },
+      [['#ffffff', 'Beyaz'], ['#ffd9a0', 'Sıcak'], ['#ff2a00', 'Kırmızı (gece)'], ['#3d7bff', 'Mavi'], ['#40ff70', 'Yeşil']].map(([c, n]) =>
+        h('button', { class: 'btn', onclick: () => on(c) }, h('i', { style: `width:18px;height:18px;border-radius:50%;background:${c};flex:none` }), n)),
+      h('button', { class: 'btn primary', onclick: () => on('#000', true) }, 'SOS (Mors)')),
+    h('label', { class: 'lbl', for: 'li-color' }, 'Kendi rengin', pick),
+    h('button', { class: 'btn block', onclick: () => on(pick.value) }, 'Bu renkle aç'),
+    h('div', { class: 'note' }, h('span', {}, 'Ekranı lamba yapar. En parlak ışık için Denetim Merkezi\'nden parlaklığı sonuna kadar açın.'), h('span', {}, 'Arkadaki LED el fenerini web sayfaları açamaz; onu Denetim Merkezi\'ndeki fener düğmesiyle açın.'), h('span', {}, 'Kırmızı ışık gece gözünüzü kamaştırmaz.')));
+  return () => { off(); ov.remove(); };
+}
+
+const UNITS = {
+  'Uzunluk': [['mm', 'milimetre', 0.001], ['cm', 'santimetre', 0.01], ['m', 'metre', 1], ['km', 'kilometre', 1000], ['in', 'inç', 0.0254], ['ft', 'fit', 0.3048], ['yd', 'yarda', 0.9144], ['mi', 'mil', 1609.344], ['nmi', 'deniz mili', 1852]],
+  'Ağırlık': [['mg', 'miligram', 1e-6], ['g', 'gram', 0.001], ['kg', 'kilogram', 1], ['t', 'ton', 1000], ['oz', 'ons', 0.028349523125], ['lb', 'libre (pound)', 0.45359237], ['st', 'stone', 6.35029318]],
+  'Sıcaklık': [['°C', 'Celsius'], ['°F', 'Fahrenheit'], ['K', 'Kelvin']],
+  'Hacim': [['ml', 'mililitre', 0.001], ['cl', 'santilitre', 0.01], ['l', 'litre', 1], ['m³', 'metreküp', 1000], ['tsp', 'çay kaşığı (ABD)', 0.00492892159375], ['tbsp', 'yemek kaşığı (ABD)', 0.01478676478125], ['cup', 'cup (ABD)', 0.2365882365], ['fl oz', 'sıvı ons (ABD)', 0.0295735295625], ['gal', 'galon (ABD)', 3.785411784]],
+  'Hız': [['km/h', 'km/saat', 1 / 3.6], ['m/s', 'metre/saniye', 1], ['mph', 'mil/saat', 0.44704], ['kn', 'knot', 1852 / 3600]],
+  'Alan': [['m²', 'metrekare', 1], ['dönüm', 'dönüm', 1000], ['ha', 'hektar', 1e4], ['km²', 'kilometrekare', 1e6], ['ft²', 'fitkare', 0.09290304], ['ac', 'akre', 4046.8564224]],
+  'Veri': [['B', 'bayt', 1], ['KB', 'kilobayt', 1e3], ['MB', 'megabayt', 1e6], ['GB', 'gigabayt', 1e9], ['TB', 'terabayt', 1e12], ['KiB', 'kibibayt', 1024], ['MiB', 'mebibayt', 1024 ** 2], ['GiB', 'gibibayt', 1024 ** 3]],
+};
+const tempToC = (v, u) => u === '°C' ? v : u === '°F' ? (v - 32) * 5 / 9 : v - 273.15;
+const tempFromC = (c, u) => u === '°C' ? c : u === '°F' ? c * 9 / 5 + 32 : c + 273.15;
+function convertUnit(cat, v, from, to) {
+  if (cat === 'Sıcaklık') return tempFromC(tempToC(v, from), to);
+  const f = UNITS[cat].find(u => u[0] === from), t = UNITS[cat].find(u => u[0] === to);
+  return v * f[2] / t[2];
+}
+const fmtSig = n => Math.abs(n) >= 1e15 || (n !== 0 && Math.abs(n) < 1e-6) ? n.toExponential(4).replace('.', ',') : n.toLocaleString('tr-TR', { maximumFractionDigits: 6 });
+function mountUnits(main) {
+  const cat = h('select', { class: 'input', id: 'un-cat' }, Object.keys(UNITS).map(k => h('option', { value: k }, k)));
+  const val = h('input', { class: 'input', id: 'un-val', type: 'text', inputmode: 'decimal', value: '1' });
+  const from = h('select', { class: 'input', id: 'un-from' });
+  const list = h('div', { class: 'kv' });
+  function calc() {
+    const v = parseNum(val.value);
+    if (!isFinite(v)) { list.replaceChildren(); return; }
+    list.replaceChildren(...kvRows(UNITS[cat.value].filter(u => u[0] !== from.value).map(u => [u[1], fmtSig(convertUnit(cat.value, v, from.value, u[0])) + ' ' + u[0]])));
+  }
+  function fill() {
+    from.replaceChildren(...UNITS[cat.value].map(([s, n]) => h('option', { value: s }, n + ' (' + s + ')')));
+    from.value = { 'Uzunluk': 'm', 'Ağırlık': 'kg', 'Hacim': 'l', 'Hız': 'km/h', 'Alan': 'm²', 'Veri': 'GB' }[cat.value] || UNITS[cat.value][0][0];
+    calc();
+  }
+  cat.addEventListener('change', fill); from.addEventListener('change', calc); val.addEventListener('input', calc);
+  main.append(h('label', { class: 'lbl', for: 'un-cat' }, 'Tür', cat), h('div', { class: 'row' }, h('label', { class: 'lbl', for: 'un-val' }, 'Değer', val), h('label', { class: 'lbl', for: 'un-from' }, 'Birim', from)), list);
+  fill();
+}
+
+// ---------- Güvenlik: şifreli mesaj, IBAN ----------
+const u8ToB64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+const b64ToU8 = b => Uint8Array.from(atob(b), c => c.charCodeAt(0));
+async function cryptKey(pass, salt) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function encryptText(text, pass) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await cryptKey(pass, salt), new TextEncoder().encode(text)));
+  const all = new Uint8Array(28 + ct.length); all.set(salt); all.set(iv, 16); all.set(ct, 28);
+  return 'CZ1:' + u8ToB64(all);
+}
+async function decryptText(blob, pass) {
+  const m = blob.replace(/\s+/g, '').match(/^CZ1:([A-Za-z0-9+/]+=*)$/);
+  if (!m) throw new Error('Bu bir Cep Zero şifreli mesajı değil ("CZ1:" ile başlamalı).');
+  const all = b64ToU8(m[1]);
+  if (all.length < 29) throw new Error('Mesaj eksik veya bozuk.');
+  try { return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: all.subarray(16, 28) }, await cryptKey(pass, all.subarray(0, 16)), all.subarray(28))); }
+  catch { throw new Error('Şifre yanlış ya da mesaj değiştirilmiş.'); }
+}
+function mountCrypt(main) {
+  let mode = 'enc';
+  const msg = h('textarea', { class: 'input', id: 'cr-msg', placeholder: 'Gizli mesajınız', spellcheck: 'false' });
+  const pass = h('input', { class: 'input', id: 'cr-pass', type: 'password', placeholder: 'Ortak şifre', autocapitalize: 'off' });
+  const hint = h('p', { class: 'small muted' });
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const go = h('button', { class: 'btn primary block' }, 'Şifrele');
+  const lblMsg = h('label', { class: 'lbl', for: 'cr-msg' }, 'Mesaj', msg);
+  pass.addEventListener('input', () => {
+    if (mode !== 'enc' || !pass.value) return (hint.textContent = '');
+    const s = pwStrength(pass.value);
+    hint.className = 'small ' + (s.bits < 50 ? 'neg' : 'pos');
+    hint.textContent = s.bits < 50 ? 'Zayıf şifre: tahmin edilebilir. En az 4 rastgele kelime veya 14+ karakter kullanın.' : 'Şifre güçlü görünüyor.';
+  });
+  go.onclick = async () => {
+    if (!msg.value.trim() || !pass.value) return toast('Mesaj ve şifre gerekli');
+    go.disabled = true;
+    try {
+      if (mode === 'enc') {
+        const blob = await encryptText(msg.value, pass.value);
+        const o = out('Şifreli mesaj', blob);
+        res.replaceChildren(o, navigator.share ? h('button', { class: 'btn block', onclick: () => navigator.share({ text: blob }).catch(() => {}) }, 'Paylaş (WhatsApp, Signal…)') : '');
+      } else res.replaceChildren(out('Çözülen mesaj', await decryptText(msg.value, pass.value)));
+    } catch (e) { res.replaceChildren(h('p', { class: 'err' }, e.message)); }
+    go.disabled = false;
+  };
+  main.append(
+    segCtl([['enc', 'Şifrele'], ['dec', 'Çöz']], 'enc', v => {
+      mode = v; res.replaceChildren(); hint.textContent = '';
+      go.textContent = v === 'enc' ? 'Şifrele' : 'Çöz';
+      lblMsg.firstChild.textContent = v === 'enc' ? 'Mesaj' : 'Şifreli mesaj (CZ1:…)';
+      msg.placeholder = v === 'enc' ? 'Gizli mesajınız' : 'CZ1:…';
+    }),
+    lblMsg, h('label', { class: 'lbl', for: 'cr-pass' }, 'Şifre', pass), hint, go, res,
+    h('div', { class: 'note' },
+      h('span', {}, 'AES-256-GCM ile tamamen telefonda şifrelenir; hiçbir sunucuya gitmez. Karşı taraf da Cep Zero\'da "Çöz" ile aynı şifreyle açar.'),
+      h('span', {}, 'Şifreyi mesajla aynı yoldan göndermeyin: mesajı WhatsApp\'tan atıyorsanız şifreyi yüz yüze ya da telefonda söyleyin.')));
+}
+
+const IBAN_LEN = { AD: 24, AE: 23, AL: 28, AT: 20, AZ: 28, BA: 20, BE: 16, BG: 22, BH: 22, BR: 29, CH: 21, CY: 28, CZ: 24, DE: 22, DK: 18, EE: 20, EG: 29, ES: 24, FI: 18, FO: 18, FR: 27, GB: 22, GE: 22, GI: 23, GL: 18, GR: 27, HR: 21, HU: 28, IE: 22, IL: 23, IQ: 23, IS: 26, IT: 27, JO: 30, KW: 30, KZ: 20, LB: 28, LI: 21, LT: 20, LU: 20, LV: 21, MC: 27, MD: 24, ME: 22, MK: 19, MR: 27, MT: 31, MU: 30, NL: 18, NO: 15, PK: 24, PL: 28, PS: 29, PT: 25, QA: 29, RO: 24, RS: 22, SA: 24, SE: 24, SI: 19, SK: 24, SM: 27, TN: 24, TR: 26, UA: 29, VG: 24, XK: 20 };
+function checkIban(raw) {
+  const s = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const cc = s.slice(0, 2), finds = [];
+  let country = cc;
+  try { country = new Intl.DisplayNames(['tr'], { type: 'region' }).of(cc) || cc; } catch {}
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(s)) return { ok: false, s, finds: [['bad', 'IBAN iki harfle (ülke kodu) ve iki rakamla başlamalı.']] };
+  if (!IBAN_LEN[cc]) finds.push(['warn', cc + ' ülke kodu tanınmadı.']);
+  else if (s.length !== IBAN_LEN[cc]) finds.push(['bad', country + ' IBAN\'ı ' + IBAN_LEN[cc] + ' karakter olmalı, bu ' + s.length + ' karakter.']);
+  let m = 0;
+  for (const ch of s.slice(4) + s.slice(0, 4)) for (const d of String(parseInt(ch, 36))) m = (m * 10 + +d) % 97;
+  finds.push(m === 1 ? ['ok', 'Kontrol basamakları doğru.'] : ['bad', 'Kontrol basamakları tutmuyor: yazım hatası var ya da IBAN uydurma.']);
+  const ok = finds.every(f => f[0] !== 'bad');
+  const kv = [['Ülke', country + ' (' + cc + ')']];
+  if (cc === 'DE' && s.length === 22) kv.push(['Banka kodu (BLZ)', s.slice(4, 12)], ['Hesap no', s.slice(12).replace(/^0+/, '')]);
+  if (cc === 'TR' && s.length === 26) kv.push(['Banka kodu', s.slice(4, 9)], ['Hesap no', s.slice(10)]);
+  return { ok, s, cc, finds, kv };
+}
+function mountIban(main) {
+  const inp = h('input', { class: 'input mono', id: 'ib-in', placeholder: 'DE89 3704 0044 0532 0130 00', autocapitalize: 'characters', spellcheck: 'false' });
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  inp.addEventListener('input', () => {
+    const v = inp.value.replace(/\s/g, '');
+    if (v.length < 5) return res.replaceChildren();
+    const r = checkIban(v);
+    res.replaceChildren(
+      h('div', { class: 'verdict ' + (r.ok ? 'v-ok' : 'v-bad') }, h('i', { class: 'dot' }), h('div', {}, h('b', {}, r.ok ? 'Geçerli IBAN' : 'Geçersiz IBAN'), h('div', { class: 'small muted mono' }, r.s.replace(/(.{4})/g, '$1 ').trim()))),
+      findList(r.finds), r.kv ? h('div', { class: 'kv' }, kvRows(r.kv)) : '');
+  });
+  main.append(h('label', { class: 'lbl', for: 'ib-in' }, 'IBAN', inp), res,
+    h('div', { class: 'note' },
+      h('span', {}, 'IBAN\'ın geçerli olması sadece yazımın doğru olduğunu gösterir; hesap sahibinin dürüst olduğunu göstermez.'),
+      h('span', {}, 'Kleinanzeigen gibi yerlerde ödeme yapmadan önce bankanızın alıcı adı kontrolüne (Empfängerüberprüfung) bakın: isim eşleşmiyorsa ödemeyin.'),
+      h('span', {}, 'Kontrol tamamen telefonda yapılır, IBAN hiçbir yere gönderilmez.')));
+}
+
+// ---------- Geliştirici kutusu ----------
+const rel = ms => {
+  const diff = (ms - Date.now()) / 1000, a = Math.abs(diff), f = new Intl.RelativeTimeFormat('tr', { numeric: 'auto' });
+  for (const [u, s] of [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]]) if (a >= s) return f.format(Math.round(diff / s), u);
+  return f.format(Math.round(diff), 'second');
+};
+function devJson(box) {
+  const ta = h('textarea', { class: 'input', id: 'dj-in', placeholder: '{"örnek": [1, 2, 3]}', spellcheck: 'false', style: 'min-height:180px' });
+  const msg = h('p', { class: 'small' });
+  const run = sp => {
+    try {
+      const v = JSON.parse(ta.value); ta.value = JSON.stringify(v, null, sp);
+      msg.className = 'small pos'; msg.textContent = 'Geçerli JSON · ' + (Array.isArray(v) ? v.length + ' öğe' : v && typeof v === 'object' ? Object.keys(v).length + ' anahtar' : typeof v);
+    } catch (e) {
+      const p = /position (\d+)/.exec(e.message);
+      let where = '';
+      if (p) { const before = ta.value.slice(0, +p[1]); where = 'satır ' + before.split('\n').length + ', sütun ' + (+p[1] - before.lastIndexOf('\n')) + ': '; }
+      msg.className = 'err'; msg.textContent = 'Hata, ' + where + e.message;
+    }
+  };
+  box.append(ta, h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: () => run(2) }, 'Biçimlendir'), h('button', { class: 'btn', onclick: () => run(0) }, 'Küçült'), h('button', { class: 'btn', onclick: () => copyText(ta.value) }, 'Kopyala')), msg);
+}
+function devJwt(box) {
+  const ta = h('textarea', { class: 'input', id: 'jwt-in', placeholder: 'eyJhbGciOi…', spellcheck: 'false' });
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const b64u = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); s += '='.repeat((4 - s.length % 4) % 4); return new TextDecoder().decode(b64ToU8(s)); };
+  ta.addEventListener('input', () => {
+    const v = ta.value.trim();
+    if (!v) return res.replaceChildren();
+    const parts = v.split('.');
+    try {
+      if (parts.length !== 3) throw new Error('JWT nokta ile ayrılmış üç parçadan oluşur.');
+      const head = JSON.parse(b64u(parts[0])), pay = JSON.parse(b64u(parts[1]));
+      const now = Date.now() / 1000, dt = t => new Date(t * 1000).toLocaleString('tr-TR');
+      const finds = [['iat', 'Oluşturulma'], ['nbf', 'Geçerlilik başlangıcı'], ['exp', 'Bitiş']].filter(([k]) => typeof pay[k] === 'number')
+        .map(([k, n]) => [k === 'exp' && pay.exp < now ? 'bad' : 'info', n + ': ' + dt(pay[k]) + (k === 'exp' ? (pay.exp < now ? ' (süresi dolmuş)' : ' (geçerli)') : '')]);
+      if (String(head.alg).toLowerCase() === 'none') finds.unshift(['bad', 'alg: none, yani imzasız token. Bir sunucu bunu kabul ediyorsa ciddi güvenlik açığıdır.']);
+      finds.push(['warn', 'İmza doğrulanmadı: içerik okunabilir ama gerçek olduğu kanıtlanmaz.']);
+      res.replaceChildren(findList(finds), out('Başlık (header)', JSON.stringify(head, null, 2)), out('İçerik (payload)', JSON.stringify(pay, null, 2)));
+    } catch (e) { res.replaceChildren(h('p', { class: 'err' }, e.message.startsWith('JWT') ? e.message : 'Çözülemedi: geçerli bir JWT değil.')); }
+  });
+  box.append(ta, res, h('div', { class: 'note' }, 'JWT, uygulamaların oturum anahtarıdır; elinde olan kişi hesaba girebilir. Sadece kendi tokenınızı inceleyin ve kimseyle paylaşmayın. Çözme tamamen telefonda yapılır.'));
+}
+function devTime(box) {
+  const now = h('div', { class: 'lcd', style: 'display:flex;justify-content:space-between;align-items:center;gap:8px' });
+  const inp = h('input', { class: 'input mono', id: 'ut-in', inputmode: 'numeric', placeholder: 'ör. 1700000000' });
+  const r1 = h('div', { class: 'kv' });
+  const dtIn = h('input', { class: 'input', id: 'ut-dt', type: 'datetime-local', step: 1 });
+  const r2 = out('Unix zamanı (saniye)', '');
+  const nowSpan = h('span', {});
+  now.append(nowSpan, h('button', { class: 'copy', onclick: () => copyText(String(Math.floor(Date.now() / 1000))) }, 'Kopyala'));
+  const upd = () => (nowSpan.textContent = 'Şu an: ' + Math.floor(Date.now() / 1000));
+  inp.addEventListener('input', () => {
+    const v = inp.value.trim();
+    if (!/^-?\d+(\.\d+)?$/.test(v)) return r1.replaceChildren();
+    const isMs = Math.abs(+v) > 1e11, d = new Date(isMs ? +v : +v * 1000);
+    if (isNaN(d)) return r1.replaceChildren();
+    r1.replaceChildren(...kvRows([['Birim', isMs ? 'milisaniye' : 'saniye'], ['Yerel saat', d.toLocaleString('tr-TR')], ['UTC (ISO)', d.toISOString()], ['Ne zaman', rel(+d)]]));
+  });
+  dtIn.addEventListener('input', () => { const d = new Date(dtIn.value); r2.set(isNaN(d) ? '' : String(Math.floor(d / 1000))); });
+  box.append(now, h('label', { class: 'lbl', for: 'ut-in' }, 'Unix zamanı → tarih', inp), r1, h('label', { class: 'lbl', for: 'ut-dt' }, 'Tarih → Unix zamanı', dtIn), r2);
+  upd();
+  return setInterval(upd, 1000);
+}
+function devUuid(box) {
+  const n = h('input', { class: 'input', id: 'uu-n', type: 'number', inputmode: 'numeric', min: 1, max: 100, value: 5 });
+  const o = out('UUID v4', '');
+  const gen = () => o.set(Array.from({ length: Math.min(100, Math.max(1, Math.floor(+n.value) || 1)) }, () => crypto.randomUUID()).join('\n'));
+  box.append(h('label', { class: 'lbl', for: 'uu-n' }, 'Kaç tane', n), h('button', { class: 'btn primary', onclick: gen }, 'Üret'), o);
+  gen();
+}
+function mountDev(main) {
+  const body = h('div', { style: 'display:grid;gap:12px' });
+  const tabs = { json: devJson, jwt: devJwt, zaman: devTime, uuid: devUuid };
+  let clock = null;
+  const show = k => { clearInterval(clock); body.replaceChildren(); clock = tabs[k](body) || null; };
+  main.append(segCtl([['json', 'JSON'], ['jwt', 'JWT'], ['zaman', 'Unix'], ['uuid', 'UUID']], 'json', show), body);
+  show('json');
+  return () => clearInterval(clock);
 }
 
 // ---------- boot ----------
