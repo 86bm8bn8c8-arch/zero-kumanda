@@ -300,6 +300,12 @@ const ICON = {
   scan: '<path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3"/><path d="M8 9h8M8 12h8M8 15h5"/>',
   house: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>',
   hand: '<path d="M7 11V6.5a1.5 1.5 0 013 0V11M10 10V5a1.5 1.5 0 013 0v5M13 10V6a1.5 1.5 0 013 0v6"/><path d="M16 9.5a1.5 1.5 0 013 0V14a7 7 0 01-7 7h-1a6 6 0 01-5-2.7L3.5 14a1.5 1.5 0 012.5-1.7L7 14"/>',
+  coins: '<ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v4c0 1.7 2.7 3 6 3s6-1.3 6-3V7"/><path d="M9 14v3c0 1.7 2.7 3 6 3s6-1.3 6-3v-4c0-1.7-2.7-3-6-3"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2"/>',
+  scissors: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 7.9L20 20M8.1 16.1L20 4"/>',
+  phone: '<path d="M5 3h4l2 5-2.5 1.5a11 11 0 006 6L16 13l5 2v4a2 2 0 01-2 2A16 16 0 013 5a2 2 0 012-2z"/>',
+  passport: '<rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="10" r="3.5"/><path d="M8.5 10h7M12 6.5c-1.5 2-1.5 5 0 7M12 6.5c1.5 2 1.5 5 0 7M9 17h6"/>',
+  flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   radio: '<path d="M4.9 19.1a10 10 0 010-14.2M19.1 4.9a10 10 0 010 14.2M8 16a5 5 0 010-8M16 8a5 5 0 010 8"/><circle cx="12" cy="12" r="1.5"/>',
 };
 const icon = n => h('span', { class: 'ic', html: '<svg viewBox="0 0 24 24">' + ICON[n] + '</svg>' });
@@ -331,7 +337,7 @@ let cleanup = null;
 function route() {
   if (cleanup) { try { cleanup(); } catch {} cleanup = null; }
   const id = location.hash.slice(1);
-  const tool = [...HACKS, ...SEC, ...MONEY, ...DAILY, ...TOOLS].find(t => t.id === id);
+  const tool = [...PRO, ...HACKS, ...SEC, ...MONEY, ...DAILY, ...TOOLS].find(t => t.id === id);
   const main = $('#main');
   main.replaceChildren();
   window.scrollTo(0, 0);
@@ -346,6 +352,8 @@ function renderMenu(main) {
     h('div', { class: 'hero' },
       h('div', { class: 'big' }, 'Telefonundaki araç kutusu'),
       h('p', { class: 'muted small' }, 'Flipper tarzı araçlar, sadece iPhone\'un kendi donanımıyla: kamera, mikrofon, hoparlör, hareket sensörleri, GPS ve Bluetooth.')),
+    h('h2', {}, 'Pro hileler'),
+    h('div', { class: 'menu' }, PRO.map(menuItem)),
     h('h2', {}, 'Hayat hackleri'),
     h('div', { class: 'menu' }, HACKS.map(menuItem)),
     h('h2', {}, 'Güvenlik'),
@@ -2506,6 +2514,219 @@ function mountBuergergeld(main) {
     res);
   Object.values(F).forEach(i => i.addEventListener('input', calc));
   single.addEventListener('change', calc);
+  calc();
+}
+
+// ---------- Pro hileler ----------
+const PRO = [
+  { id: 'para-avcisi', icon: 'coins', name: 'Para avcısı', desc: 'Devletin sana ödemek zorunda olduğu, kimsenin söylemediği paralar', mount: mountMoneyHunt },
+  { id: 'takvim', icon: 'cal', name: 'Hile takvimi', desc: 'Bu ay yapman gereken para hileleri (Kasım: araç sigortası!)', mount: mountHackCalendar },
+  { id: 'gider', icon: 'scissors', name: 'Sabit gider denetimi', desc: 'Telefon, internet, elektrik, sigorta: yılda ne kadar fazla ödüyorsun', mount: mountCostAudit },
+  { id: 'senaryo', icon: 'phone', name: 'Telefon ve pazarlık senaryoları', desc: 'Almanca hazır konuşmalar: indirim kopar, zam iste, hızlı doktor randevusu', mount: mountScripts },
+  { id: 'vatandaslik', icon: 'passport', name: 'Vatandaşlık ve oturum', desc: 'Çifte vatandaşlık serbest: hakkın var mı, ne eksik', mount: mountCitizen },
+  { id: 'borclanma', icon: 'flag', name: 'Türkiye emekliliği (borçlanma)', desc: 'Almanya yıllarını Türkiye emekliliğine say: maliyet, EYT kontrolü', mount: mountBorclanma },
+];
+
+// --- Para avcısı ---
+const MONEY_HUNT = [
+  { if: f => f.kids, t: 'Kindergeld (çocuk parası)', amt: f => nf(259 * f.kids, 0) + ' €/ay', how: 'Familienkasse (arbeitsagentur.de → Familie und Kinder). En fazla 6 ay geriye dönük ödenir; geç kalma.' },
+  { if: f => f.kids && f.work && f.low && !f.bg, t: 'Kinderzuschlag (çocuk ek parası)', amt: () => 'çocuk başı ~300 €/ay\'a kadar', how: 'Çalışıyorsun ama gelir dar: Familienkasse\'de "KiZ-Lotse" ile 2 dakikada kontrol et. Alırsan okul paketi, bedava okul yemeği ve GEZ muafiyeti de gelir.' },
+  { if: f => f.rent && f.low && !f.bg, t: 'Wohngeld (kira yardımı)', amt: () => 'ayda birkaç yüz €', how: 'Belediyenin Wohngeldstelle\'sine başvur. 2023\'ten beri çok daha fazla kişi hak kazanıyor; Wohngeld-Rechner (bmwsb.bund.de) ile hesapla.' },
+  { if: f => f.kids && (f.low || f.bg), t: 'Bildung und Teilhabe (BuT)', amt: () => 'okul malzemesi ~200 €/yıl + bedava okul yemeği + spor/müzik 15 €/ay', how: 'Bürgergeld, Kinderzuschlag veya Wohngeld alıyorsan otomatik hakkın var: Jobcenter veya belediyeden ayrıca iste. Okul gezileri ve gerekirse ek ders (Nachhilfe) de ödenir.' },
+  { if: f => f.single && f.kids, t: 'Unterhaltsvorschuss (nafaka avansı)', amt: () => '~230–400 €/ay (çocuğun yaşına göre)', how: 'Diğer ebeveyn nafaka ödemiyorsa veya az ödüyorsa Jugendamt öder, sonra parayı ondan kendisi tahsil eder. 18 yaşına kadar.' },
+  { if: f => f.single && f.kids && f.work, t: 'Tek ebeveyn vergi indirimi (Steuerklasse 2)', amt: () => 'yılda 4.260 € vergiden düşülür (+240 € her ek çocuk)', how: 'Vergi sınıfını ELSTER\'den 2\'ye çevirt; maaşın her ay artar.' },
+  { if: f => f.baby, t: 'Elterngeld (ebeveyn parası)', amt: () => 'net maaşın %65–67\'si, 300–1.800 €/ay', how: 'Doğumdan sonra en fazla 3 ay geriye dönük ödenir: hemen başvur (elterngeld-digital.de). Anne ve baba ayları paylaşırsa toplam süre uzar (Partnermonate).' },
+  { if: f => f.unemp || f.work, t: 'Bildungsgutschein (bedava meslek kursu)', amt: () => 'kurs %100 ücretsiz + sınavı geçince 1.000–1.500 € prim', how: 'Agentur für Arbeit veya Jobcenter öder: IT, muhasebe, forklift, CE/kamyon ehliyeti, bakım, dil kursları. Çalışırken de mümkün (Qualifizierungschancengesetz). Kurs bulmak: kursnet (arbeitsagentur.de).' },
+  { if: f => f.unemp, t: 'İşsizlik parası doğru başla', amt: () => 'net maaşın %60–67\'si', how: 'İşin bitmeden 3 ay önce (ya da fesihten sonra 3 gün içinde) "arbeitssuchend" kaydol, yoksa 1 hafta ceza. Aufhebungsvertrag imzalama: 12 hafta ceza.' },
+  { if: f => f.bg || f.student, t: 'GEZ (Rundfunkbeitrag) muafiyeti', amt: () => 'yılda ~220 € tasarruf', how: 'Bürgergeld veya BAföG (ailesinden ayrı yaşayan öğrenci) alıyorsan rundfunkbeitrag.de\'den "Befreiung" başvurusu.' },
+  { if: f => f.student, t: 'BAföG / BAB (öğrenci ve çırak parası)', amt: () => 'ayda ~900 €\'ya kadar', how: 'Üniversite: BAföG (yarısı hibe). Meslek eğitimi (Ausbildung) yapıp aileden ayrı yaşıyorsan: BAB, Agentur für Arbeit.' },
+  { if: f => f.low || f.bg, t: 'Beratungshilfe (neredeyse bedava avukat)', amt: () => 'avukat danışmanlığı 15 €', how: 'Amtsgericht\'ten "Beratungshilfeschein" al, istediğin avukata git. Kira, iş, Jobcenter, borç sorunları için. Dava için Prozesskostenhilfe.' },
+  { if: f => f.low || f.bg, t: 'Sozialticket ve Tafel', amt: () => 'indirimli toplu taşıma + çok ucuz gıda', how: 'Birçok şehirde düşük gelirliye indirimli Deutschlandticket/Sozialticket var. Tafel\'de haftalık gıda sembolik ücretle.' },
+  { if: () => true, t: 'Sağlık sigortası bonus programı', amt: () => 'yılda 50–300 €', how: 'Krankenkassen uygulamasında "Bonusprogramm": check-up, diş kontrolü, aşı, spor kulübü için puan → para. Çoğu kişi hiç başvurmuyor. Diş temizliğine (PZR) de destek verenler var.' },
+  { if: f => f.work, t: 'Vergi iadesi', amt: () => 'ortalama ~1.000 €/yıl', how: '4 yıl geriye dönük beyanname verebilirsin. Bu uygulamadaki "Vergi iadesi tahmini" ile hesapla, ELSTER ile ücretsiz gönder.' },
+  { if: f => f.work, t: 'Vermögenswirksame Leistungen (işveren hediyesi)', amt: () => 'işveren ayda 40 €\'ya kadar', how: 'İK\'ya sor: "Zahlt die Firma vermögenswirksame Leistungen?" Çoğu toplu sözleşmede var ama istenmezse ödenmez. Düşük gelirde devlet de prim ekler.' },
+  { if: f => f.work, t: 'İşveren desteği: Jobticket, Jobrad', amt: () => 'Deutschlandticket %30+ indirimli, vergisiz bisiklet', how: 'İşveren Deutschlandticket\'e en az %25 katkı verirse ek %5 indirim gelir. Vergisiz yemek kartı, düşük vergili internet katkısı (ayda 50 €\'ya kadar) da istenebilir.' },
+  { if: f => f.car, t: 'Araç sigortası değiştir', amt: () => 'yılda 100–400 € tasarruf', how: 'Sözleşmeyi her yıl 30 Kasım\'a kadar iptal edebilirsin. Karşılaştır (Check24, Verivox, HUK direkt), aynı teminatla ucuzuna geç.' },
+];
+function mountMoneyHunt(main) {
+  const Q = [['work', 'Çalışıyorum'], ['low', 'Hane geliri düşük (net ~2.500 €\'nun altı)'], ['bg', 'Bürgergeld alıyorum'], ['unemp', 'İşsizim / iş arıyorum'], ['rent', 'Kira ödüyorum'], ['single', 'Çocuğumu tek başıma büyütüyorum'], ['baby', 'Bebeğim var veya yolda'], ['student', 'Öğrenci / çırağım (Ausbildung)'], ['car', 'Arabam var']];
+  const f = { kids: 0 };
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const kidsIn = h('input', { class: 'input', id: 'mh-kids', inputmode: 'numeric', value: '0' });
+  function calc() {
+    f.kids = Math.max(0, Math.floor(parseNum(kidsIn.value)) || 0);
+    const hits = MONEY_HUNT.filter(x => x.if(f));
+    res.replaceChildren(h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Kontrol etmen gereken'), h('div', { class: 'xl' }, hits.length + ' para kaynağı')),
+      ...hits.map(x => h('details', { class: 'card' }, h('summary', {}, h('b', {}, x.t), h('div', { class: 'small pos' }, x.amt(f))), h('p', { class: 'small' }, x.how))));
+  }
+  main.append(h('div', { class: 'card' }, ...Q.map(([k, l]) => { const c = h('input', { type: 'checkbox', id: 'mh-' + k }); c.onchange = () => { f[k] = c.checked; calc(); }; return h('label', { class: 'chk', for: 'mh-' + k }, c, l); }),
+    h('label', { class: 'lbl', for: 'mh-kids' }, 'Çocuk sayısı (18 yaş altı)', kidsIn)), res,
+    h('div', { class: 'note' }, 'Tutarlar 2026 için yaklaşıktır. Kural: başvurmazsan ödenmez ve çoğu yardım geriye dönük ödenmez. Emin değilsen yine de başvur; ret gelirse kaybın yok.'));
+  kidsIn.addEventListener('input', calc);
+  calc();
+}
+
+// --- Hile takvimi ---
+const HACK_MONTHS = [
+  ['Ocak', ['Elektrik, gaz, sigorta, Krankenkasse zam mektupları gelir: her zam = özel fesih hakkı. Hemen ucuzuna geç.', 'Krankenkasse ek primini (Zusatzbeitrag) artırdıysa daha ucuz kasaya geçebilirsin; hizmet aynı.', 'Spor salonlarında yeni yıl kampanyaları: kayıt ücretsiz, ilk aylar indirimli.']],
+  ['Şubat', ['İşverenden Lohnsteuerbescheinigung gelir: vergi beyannamesini hemen ELSTER\'den ver, iade Mayıs yerine Mart\'ta gelsin.', 'Geçen yılın Nebenkosten faturalarını topla.']],
+  ['Mart', ['Nebenkostenabrechnung sezonu: hata oranı çok yüksek. Faturaları görmeyi iste (Belegeinsicht), kiracı derneğine kontrol ettir.', 'Saat ileri alınmadan elektrik okumanı (Zählerstand) fotoğrafla: tahmini faturaya itiraz için kanıt.']],
+  ['Nisan', ['Yaz tatili uçuşlarını şimdi al; ayrıca rötar olursa "Uçak tazminatı" aracını hatırla (3 yıl geriye geçerli).', 'Rentenversicherung\'un gönderdiği Renteninformation\'ı kontrol et: eksik çalışma yılı varsa düzelttir (Kontenklärung).']],
+  ['Mayıs', ['Vergi iadesi geldiyse: Tagesgeld hesabına koy, faiz al. Vadesiz hesapta para eriyor.', 'Bayram/tatil öncesi: Türkiye\'ye para gönderiminde banka yerine düşük ücretli servisleri karşılaştır (kur farkı gizli ücrettir).']],
+  ['Haziran', ['Yaz indirimleri (Sommerschlussverkauf): fiyat geçmişine bak, "indirim" çoğu zaman sahte.', 'İşyerinde 26°C üstünde işveren önlem almalı, 30°C üstünde zorunlu (ASR A3.5): vantilatör, esnek saat, içecek iste.']],
+  ['Temmuz', ['Emekli maaşları ve bazı yardımlar Temmuz\'da artar: gelir sınırına takılıp Wohngeld\'i kaybettiysen yeniden kontrol et.', 'Indexmiete varsa enflasyon artışını kontrol et: düşükse kira da artamaz.']],
+  ['Ağustos', ['Okul başlangıcı: BuT okul paketi (~130 € Ağustos\'ta, ~70 € Şubat\'ta) Bürgergeld/KiZ/Wohngeld alanlara. İstemezsen gelmeyebilir.', 'Ausbildung başlıyorsa BAB başvurusu.']],
+  ['Eylül', ['Yeni dönem kurslar: Bildungsgutschein ile bedava kurs için Agentur\'a şimdi git.', 'Kış öncesi ısınma: gaz aylık taksitini (Abschlag) tüketimine göre ayarlat, kışın sürpriz faturadan kaçın.']],
+  ['Ekim', ['Araç sigortası yeni fiyat mektubu gelir: Kasım sonuna kadar karşılaştır.', 'Elektrik/gaz: yeni müşteri bonuslu tarifeye geçiş için iyi zaman; fesih süresini kontrol et.']],
+  ['Kasım', ['30 KASIM: araç sigortasını değiştirmenin son günü (çoğu sözleşmede). Karşılaştırma sitesinde 5 dakika = yılda 100–400 €.', 'Black Friday: fiyat geçmişine bak (ör. idealo fiyat grafiği). Önceden şişirilmiş "indirimler" yaygın.', 'Weihnachtsgeld (yılbaşı ikramiyesi) sözleşmende/toplu sözleşmede var mı kontrol et.']],
+  ['Aralık', ['Yıl sonu vergi hilesi: iş için alacağın laptop/telefon/kıyafeti, usta faturalarını 31 Aralık\'tan önce öde; bu yılın iadesine girsin.', 'Bankaya Freistellungsauftrag ver: yılda 1.000 € faiz/temettü vergisiz (çiftlerde 2.000 €).', 'Kalan izin günlerin yanmasın: işveren seni uyarmadıysa izin kaybolmaz (AB mahkemesi kararı).', 'Aboneliklerini gözden geçir: kullanmadıklarını iptal et (Ocak\'tan önce).']],
+];
+function mountHackCalendar(main) {
+  const m = new Date().getMonth();
+  const card = (i, open) => h('details', { class: 'card', open }, h('summary', {}, h('b', {}, HACK_MONTHS[i][0] + (i === m ? ' (bu ay)' : ''))), findList(HACK_MONTHS[i][1].map(x => [i === m ? 'ok' : 'info', x])));
+  main.append(card(m, true), card((m + 1) % 12, false), h('h2', {}, 'Bütün yıl'), ...HACK_MONTHS.map((_, i) => i !== m && i !== (m + 1) % 12 ? card(i, false) : null).filter(Boolean),
+    h('div', { class: 'note' }, 'Telefonun Hatırlatıcılar uygulamasına önemli tarihleri (ör. 30 Kasım) kendin ekle; bu uygulama hiçbir şey kaydetmez.'));
+}
+
+// --- Sabit gider denetimi ---
+const COSTS = [
+  ['handy', 'Cep telefonu tarifesi', 10, 'SIM-only tarife (Aldi Talk, congstar, fraenk, Lebara…) aynı şebekeyi ~10 €\'ya verir. Telefonu taksitle almak genelde pahalıdır.'],
+  ['internet', 'Ev interneti', 30, 'Sözleşme bitince iptal et: "Rückgewinnung" ekibi indirim teklif eder. Ya da yeni müşteri kampanyasına geç.'],
+  ['strom', 'Elektrik (aylık taksit)', null, 'Varsayılan "Grundversorgung" tarifesi en pahalısıdır. Her yıl yeni müşteri bonuslu tarifeye geç: genelde %15–25 ucuz.', 0.2],
+  ['gas', 'Gaz / ısınma (aylık taksit)', null, 'Elektrikle aynı: Grundversorgung\'dan çık, yıllık değiştir.', 0.15],
+  ['kfz', 'Araç sigortası (aylığa böl)', null, '30 Kasım\'a kadar değiştir. Yıllık ödersen ek indirim; kilometreyi doğru gir.', 0.2],
+  ['fitness', 'Spor salonu', 25, 'Zincirler (McFit, FitX, Clever Fit) ~20–30 €. Krankenkasse bazı kurslara para verir.'],
+  ['stream', 'Streaming (Netflix, Spotify, DAZN…) toplam', null, 'Hepsini aynı anda tutma: ayda bir servis aç, bitir, iptal et (rotasyon). Aile paketlerini paylaş.', 0.5],
+  ['bank', 'Banka hesap ücreti', 0, 'Ücretsiz Girokonto\'lar var (dijital bankalar, bazı Sparkasse/Volksbank şartlı). Kart başına ücret ödeme.'],
+  ['vers', 'Diğer sigortalar (telefon, kaza, garanti…)', null, 'Çoğu gereksiz. Gerçekten gerekli olan: Haftpflicht (~5 €/ay). Telefon/elektronik sigortaları genelde para kaybıdır.', 0.5],
+];
+function mountCostAudit(main) {
+  const I = {};
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  function calc() {
+    let total = 0; const rows = [];
+    for (const [k, label, bench, tip, pct] of COSTS) {
+      const v = parseNum(I[k].value);
+      if (!(v > 0)) continue;
+      const save = bench != null ? Math.max(0, v - bench) : v * pct;
+      total += save * 12;
+      if (save > 0.5) rows.push(h('div', { class: 'card' }, h('div', { style: 'display:flex;justify-content:space-between;gap:8px' }, h('b', {}, label), h('b', { class: 'pos' }, '−' + nf(save * 12, 0) + ' €/yıl')), h('p', { class: 'small muted' }, tip)));
+    }
+    res.replaceChildren(h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Yıllık tasarruf potansiyeli'), h('div', { class: 'xl' }, '≈ ' + nf(total, 0) + ' €')), ...rows);
+  }
+  main.append(h('p', { class: 'small muted' }, 'Aylık ödediğin tutarları yaz (bilmediklerini boş bırak):'),
+    ...COSTS.map(([k, label]) => { const [i, l] = field('ca-' + k, label + ' €/ay', { inputmode: 'decimal' }); I[k] = i; i.addEventListener('input', calc); return l; }), res,
+    h('div', { class: 'note' }, 'Karşılaştırma değerleri 2026 için kaba ortalamalardır. İptal için "Almanca mektup yazıcı" aracındaki Kündigung mektubunu kullan.'));
+  calc();
+}
+
+// --- Telefon ve pazarlık senaryoları ---
+const SCRIPTS = [
+  { t: 'Vodafone/Telekom/O2: iptal ederek indirim koparmak', hack: 'Önce yazılı iptal et (Kündigung). Birkaç gün içinde "Rückgewinnung" ekibi arar ve normalde olmayan indirimler sunar. Teklif kötüyse iptal kalsın.',
+    de: 'Guten Tag, ich habe meinen Vertrag gekündigt und bleibe auch dabei, es sei denn, Sie können mir ein deutlich besseres Angebot machen. Bei einem anderen Anbieter bekomme ich den gleichen Tarif für [X] Euro im Monat. Was können Sie mir anbieten?',
+    tr: 'Merhaba, sözleşmemi iptal ettim ve ciddi şekilde daha iyi bir teklif vermezseniz iptal kalacak. Başka firmada aynı tarifeyi ayda [X] €\'ya alıyorum. Ne teklif edebilirsiniz?' },
+  { t: 'Maaş zammı istemek', hack: 'Zamanlama: başarılı bir projeden sonra veya yıllık görüşmede. Rakam söyle (aralık değil), kendi değerini piyasa verisiyle göster (Stepstone/Kununu maaş verileri).',
+    de: 'Ich möchte gerne über mein Gehalt sprechen. In den letzten Monaten habe ich [Aufgabe/Erfolg] übernommen. Vergleichbare Stellen werden laut Marktdaten mit [Betrag] Euro brutto im Jahr bezahlt. Ich stelle mir daher ein Gehalt von [Betrag] Euro vor.',
+    tr: 'Maaşım hakkında konuşmak istiyorum. Son aylarda [görev/başarı] üstlendim. Benzer pozisyonlar piyasada yıllık brüt [tutar] € alıyor. Bu yüzden [tutar] € maaş düşünüyorum.' },
+  { t: 'Uzman doktor randevusu 4 hafta içinde', hack: '116117 numarası (Terminservicestelle) yasal olarak 4 hafta içinde uzman randevusu bulmak zorunda. Ev doktorundan "Dringlichkeitscode"lu sevk (Überweisung) iste. Online: 116117.de.',
+    de: 'Guten Tag, ich habe eine Überweisung mit Dringlichkeitscode zum [Facharzt, z. B. Kardiologen] und finde selbst keinen Termin. Bitte vermitteln Sie mir einen Termin innerhalb von vier Wochen. Der Code lautet [Code].',
+    tr: 'Merhaba, [uzman, ör. kardiyolog] için aciliyet kodlu sevkim var ve kendim randevu bulamıyorum. Lütfen 4 hafta içinde randevu ayarlayın. Kod: [kod].' },
+  { t: 'Schufa raporunu bedava almak', hack: 'Schufa\'nın sattığı paket yerine DSGVO Madde 15 ile yılda istediğin kadar bedava kopya iste: meineschufa.de → "kostenlose Datenkopie". Hatalı kayıtları sildir: kredi ve ev bulmayı etkiler.',
+    de: 'Hiermit beantrage ich eine kostenlose Datenkopie nach Art. 15 DSGVO über alle zu meiner Person gespeicherten Daten. [Name, Geburtsdatum, aktuelle und frühere Anschriften]',
+    tr: 'DSGVO Madde 15 uyarınca hakkımda kayıtlı tüm verilerin ücretsiz kopyasını talep ediyorum. [Ad, doğum tarihi, şimdiki ve eski adresler]' },
+  { t: 'Depozito (Kaution) iadesi', hack: 'Ev sahibi en geç 3–6 ay içinde depozitoyu faiziyle geri vermeli. Sadece somut hasar ve bekleyen Nebenkosten için makul bir kısmını tutabilir.',
+    de: 'Das Mietverhältnis endete am [Datum], die Wohnung wurde ordnungsgemäß übergeben. Bitte zahlen Sie mir die Kaution in Höhe von [Betrag] Euro zuzüglich Zinsen bis zum [Datum] auf folgendes Konto zurück: [IBAN]. Für die zu erwartende Nebenkostennachzahlung akzeptiere ich einen angemessenen Einbehalt von höchstens [Betrag] Euro.',
+    tr: 'Kira [tarih] tarihinde bitti, ev usulüne uygun teslim edildi. [Tutar] € depozitoyu faiziyle [tarih]e kadar [IBAN] hesabına iade edin. Beklenen yan gider farkı için en fazla [tutar] € makul tutmayı kabul ediyorum.' },
+  { t: 'Kapıda / telefonda satış (elektrik, internet, sigorta)', hack: 'Kapıda veya telefonda hiçbir şeyi onaylama, "Ja" deme. Yanlışlıkla bir şey olduysa 14 gün cayma hakkın var ("Almanca mektup yazıcı" → Widerruf).',
+    de: 'Danke, ich schließe an der Haustür und am Telefon grundsätzlich keine Verträge ab. Schicken Sie mir Ihr Angebot schriftlich per Post. Bitte rufen Sie mich nicht wieder an und löschen Sie meine Nummer.',
+    tr: 'Teşekkürler, kapıda ve telefonda prensip olarak sözleşme yapmıyorum. Teklifinizi yazılı olarak postayla gönderin. Lütfen beni bir daha aramayın ve numaramı silin.' },
+  { t: 'Faturaya itiraz (usta, tamirci, garaj)', hack: 'Önceden verilen fiyat teklifi (Kostenvoranschlag) %15–20\'den fazla aşılamaz; aşılacaksa haber vermek zorundaydılar. Kalem kalem döküm iste.',
+    de: 'Ihre Rechnung über [Betrag] Euro übersteigt den Kostenvoranschlag von [Betrag] Euro um mehr als 20 %. Über die Überschreitung wurde ich nicht informiert. Ich zahle daher den Betrag laut Kostenvoranschlag zuzüglich 20 % und bitte um eine detaillierte Aufstellung der Positionen.',
+    tr: '[Tutar] €\'luk faturanız [tutar] €\'luk teklifi %20\'den fazla aşıyor ve bana haber verilmedi. Bu yüzden teklif tutarı + %20 ödüyorum ve kalem kalem döküm istiyorum.' },
+  { t: 'Jobcenter / Ausländerbehörde: telefonda kimseye ulaşamamak', hack: 'Telefonda ulaşamıyorsan yazılı başvur ve tarih koy: idare makul sürede karar vermezse (genel başvuruda 3 ay, sosyal yardım başvurusunda 6 ay, itirazda 3 ay) "Untätigkeitsklage" (hareketsizlik davası) hakkın doğar; çoğu zaman sadece bunu yazmak işi hızlandırır.',
+    de: 'Ich habe am [Datum] [Antrag/Unterlagen] eingereicht und bisher keine Entscheidung erhalten. Ich bitte um Bearbeitung bis zum [Datum]. Andernfalls behalte ich mir eine Untätigkeitsklage nach § 75 VwGO bzw. § 88 SGG vor.',
+    tr: '[Tarih] tarihinde [başvuru/belgeler] verdim, henüz karar yok. [Tarih]e kadar işleme alınmasını rica ediyorum. Aksi halde hareketsizlik davası açma hakkımı saklı tutuyorum.' },
+];
+function mountScripts(main) {
+  main.append(...SCRIPTS.map(s => h('details', { class: 'card' }, h('summary', {}, h('b', {}, s.t)),
+    h('div', { class: 'note' }, s.hack), out('Almanca (söyle / yaz)', s.de), h('p', { class: 'small muted' }, 'Anlamı: ' + s.tr))),
+    h('div', { class: 'note' }, 'Telefonda yavaş ve net oku; anlamadığında "Können Sie das bitte langsamer wiederholen?" (Lütfen daha yavaş tekrarlar mısınız?) de. Önemli konuşmalardan sonra "Bitte bestätigen Sie mir das schriftlich" (Bunu yazılı teyit edin) iste.'));
+}
+
+// --- Vatandaşlık ve oturum ---
+function mountCitizen(main) {
+  const [yrs, yrsL] = field('ct-yrs', 'Almanya\'da kaç yıldır yasal oturuyorsun?', { inputmode: 'decimal', value: '6' });
+  const [rv, rvL] = field('ct-rv', 'Kaç ay emeklilik primi (Rentenbeitrag) ödendi?', { inputmode: 'numeric', value: '60' });
+  const lang = h('select', { class: 'input', id: 'ct-lang' }, ['A1', 'A2', 'B1', 'B2', 'C1'].map(x => h('option', { value: x }, x)));
+  lang.value = 'B1';
+  const C = {};
+  const chk = (k, label, on) => { const c = h('input', { type: 'checkbox', id: 'ct-' + k, checked: !!on }); C[k] = c; c.onchange = calc; return h('label', { class: 'chk', for: 'ct-' + k }, c, label); };
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  function calc() {
+    const y = parseNum(yrs.value) || 0, m = parseNum(rv.value) || 0, b1 = ['B1', 'B2', 'C1'].includes(lang.value), gast = C.gast.checked;
+    const ein = [
+      [y >= 5 ? 'ok' : 'bad', y >= 5 ? '5 yıl yasal oturum: tamam.' : '5 yıl yasal oturum gerekli; ' + nf(5 - y, 1) + ' yıl kaldı.'],
+      [b1 || gast ? 'ok' : 'bad', gast ? 'Misafir işçi kuşağı (1974 öncesi gelenler) için yazılı dil sınavı gerekmez, sözlü anlaşmak yeter.' : b1 ? 'Almanca B1: tamam.' : 'Almanca B1 sertifikası gerekli (Volkshochschule\'de kurs ve sınav; Bildungsgutschein veya entegrasyon kursu ile ucuz/bedava).'],
+      [C.test.checked || gast ? 'ok' : 'bad', C.test.checked ? 'Einbürgerungstest: tamam.' : gast ? 'Misafir işçi kuşağında test gerekmez.' : 'Einbürgerungstest (33 soru, 17 doğru yeter, ~25 €). Alman okulundan diploman varsa gerekmez. BAMF sitesinde bedava deneme testi var.'],
+      [C.self.checked ? 'ok' : 'bad', C.self.checked ? 'Geçimini kendin sağlıyorsun: tamam.' : 'Bürgergeld almadan geçinebilmen gerekli. İstisnalar: son 24 ayın 20\'sinde tam zamanlı çalışmak, eşinin tam zamanlı çalışması (çocuk varken), misafir işçi kuşağı.'],
+      [C.crime.checked ? 'bad' : 'ok', C.crime.checked ? 'Ciddi sabıka (90 günlük gelir cezası veya 3 ay hapis üstü) engel olur.' : 'Ciddi sabıka yok: tamam.'],
+    ];
+    const einOk = ein.every(x => x[0] === 'ok');
+    const ne = [
+      [y >= 5 ? 'ok' : 'bad', '5 yıl oturum izni'], [m >= 60 ? 'ok' : 'bad', m >= 60 ? '60 ay emeklilik primi: tamam.' : '60 ay emeklilik primi gerekli; ' + Math.max(0, 60 - m) + ' ay kaldı (Rentenversicherung\'dan Versicherungsverlauf iste).'],
+      [b1 ? 'ok' : 'bad', 'Almanca B1'], [C.test.checked ? 'ok' : 'warn', '"Leben in Deutschland" testi (Einbürgerungstest ile aynı)'], [C.self.checked ? 'ok' : 'bad', 'Geçimini sağlamak'],
+    ];
+    const neOk = ne.every(x => x[0] === 'ok');
+    res.replaceChildren(
+      h('div', { class: 'verdict ' + (einOk ? 'v-ok' : 'v-warn') }, h('i', { class: 'dot' }), h('div', {}, h('b', {}, einOk ? 'Alman vatandaşlığına başvurabilirsin' : 'Vatandaşlık için eksikler var'), h('div', { class: 'small muted' }, 'Türk vatandaşlığın kalır (2024\'ten beri çifte vatandaşlık serbest)'))),
+      findList(ein),
+      h('h2', {}, 'Süresiz oturum (Niederlassungserlaubnis)'), findList(ne.map(([l, t]) => [l, t])),
+      h('div', { class: 'card' }, h('b', {}, 'Az bilinenler'), findList([
+        ['info', 'Ücret: yetişkin 255 €, birlikte başvuran çocuk 51 €. Başvuru belediyedeki Einbürgerungsbehörde\'ye, çoğu şehirde online.'],
+        ['info', 'Mavi Kart sahipleri: eskiden Türk vatandaşlığını bırakmak zorunda kalanlar artık tekrar Türk vatandaşı olabilir; Alman vatandaşlığı kaybolmaz.'],
+        ['info', 'Almanya\'da doğan çocuk: ebeveynlerden biri 5 yıldır yasal oturuyor ve süresiz oturumu varsa çocuk doğuştan Alman vatandaşı olur.'],
+        ['info', 'Alman pasaportu: AB\'de serbest çalışma/yaşama, vizesiz seyahat, seçimlerde oy.'],
+        ['warn', 'Kurallar 2025–2026\'da değişti (3 yılda hızlı vatandaşlık kaldırıldı). Başvurmadan önce şehrinin Einbürgerungsbehörde sitesini kontrol et.'],
+      ])));
+  }
+  [yrs, rv].forEach(i => i.addEventListener('input', calc)); lang.addEventListener('change', calc);
+  main.append(yrsL, rvL, h('label', { class: 'lbl', for: 'ct-lang' }, 'Almanca seviyen (sertifikalı)', lang),
+    chk('test', 'Einbürgerungstest\'i geçtim (veya Alman okul diplomam var)'), chk('self', 'Bürgergeld almadan geçiniyorum', true), chk('crime', 'Ciddi sabıkam var'), chk('gast', '1974 öncesi misafir işçi olarak geldim'),
+    res);
+  calc();
+}
+
+// --- Türkiye emekliliği: yurtdışı borçlanma ---
+function mountBorclanma(main) {
+  const [start, startL] = field('yb-start', 'Almanya\'da ilk işe başlama tarihin', { type: 'date', value: '1998-03-01' });
+  const [days, daysL] = field('yb-days', 'Borçlanmak istediğin gün sayısı (1 yıl = 360 gün)', { inputmode: 'numeric', value: '1800' });
+  const [daily, dailyL] = field('yb-daily', 'Günlük borçlanma bedeli (TL)', { inputmode: 'decimal', value: '495,45' });
+  const [kur, kurL] = field('yb-kur', '1 € kaç TL?', { inputmode: 'decimal', placeholder: 'ör. 50' });
+  let sex = 'm';
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const kurBtn = h('button', { class: 'btn', onclick: async () => {
+    kurBtn.disabled = true;
+    try { const r = await fetch('https://open.er-api.com/v6/latest/EUR'); const d = await r.json(); kur.value = String(d.rates.TRY.toFixed(2)).replace('.', ','); calc(); toast('Kur güncellendi'); }
+    catch { toast('Kur alınamadı, elle gir'); }
+    kurBtn.disabled = false;
+  } }, 'Güncel kuru getir (internet)');
+  function calc() {
+    const d = Math.max(0, parseNum(days.value) || 0), tl = d * (parseNum(daily.value) || 0), k = parseNum(kur.value);
+    const st = start.value ? new Date(start.value) : null;
+    const eyt = st && st < new Date('1999-09-09');
+    const finds = [
+      ['info', 'İlk yurtdışı işe giriş tarihin, Türkiye\'de sigorta başlangıcın sayılır. Bu yüzden erken başlayanlar çok avantajlı.'],
+      eyt ? ['ok', 'EYT kapsamındasın (sigorta başlangıcı 8 Eylül 1999 öncesi): emeklilik için YAŞ ŞARTI YOK. Gerekenler: ' + (sex === 'f' ? '20' : '25') + ' yıl sigortalılık süresi ve giriş tarihine göre 5.000–5.975 prim günü.'] : ['info', '1999 sonrası başlangıçta yaş şartı var (kademeli 58–65). Borçlanma yine de günleri tamamlar.'],
+      ['info', 'Almanya\'daki emekliliğin (Rente) bundan etkilenmez: iki ülke ayrı ayrı öder.'],
+      ['info', 'Kimler yapabilir: Türk vatandaşları ve Mavi Kart sahipleri. Almanya\'daki çalışma, işsizlik ve ara süreler borçlanılabilir.'],
+      ['info', 'Nasıl: Deutsche Rentenversicherung\'dan hizmet dökümü (Versicherungsverlauf) al, Türk konsolosluğu veya e-Devlet üzerinden SGK\'ya başvur. Tebliğden sonra 3 ay içinde öde.'],
+      ['warn', 'Günlük bedel her yıl asgari ücretle değişir (2026 tahmini: brüt asgari ücretin günlüğünün %45\'i). Kesin tutarı SGK hesaplar; bu bir tahmindir.'],
+    ];
+    res.replaceChildren(h('div', { class: 'lcd' }, h('div', { class: 'small' }, d + ' gün borçlanma'), h('div', { class: 'xl' }, nf(tl, 0) + ' TL'), k > 0 ? h('div', {}, '≈ ' + nf(tl / k, 0) + ' €') : ''), findList(finds),
+      h('div', { class: 'note' }, 'Hesap: Türkiye emekli maaşını aylık X TL varsayarsan, ödediğin para ' + (tl > 0 ? 'kabaca ' + nf(tl / 20000, 0) + ' ayda (20.000 TL maaş varsayımıyla)' : '…') + ' geri döner. Daha az gün borçlanıp daha erken emekli olmak çoğu zaman en kârlı yoldur; SGK veya uzman bir danışmanla gün sayısını optimize et.'));
+  }
+  [days, daily, kur, start].forEach(i => i.addEventListener('input', calc));
+  main.append(startL, h('div', { class: 'lbl' }, 'Cinsiyet', segCtl([['m', 'Erkek'], ['f', 'Kadın']], 'm', v => { sex = v; calc(); })), daysL, dailyL, kurL, kurBtn, res);
   calc();
 }
 
