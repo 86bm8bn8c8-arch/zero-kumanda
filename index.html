@@ -337,7 +337,7 @@ let cleanup = null;
 function route() {
   if (cleanup) { try { cleanup(); } catch {} cleanup = null; }
   const id = location.hash.slice(1);
-  const tool = [...PRO, ...HACKS, ...SEC, ...MONEY, ...DAILY, ...TOOLS].find(t => t.id === id);
+  const tool = [...EXTREME, ...PRO, ...HACKS, ...SEC, ...MONEY, ...DAILY, ...TOOLS].find(t => t.id === id);
   const main = $('#main');
   main.replaceChildren();
   window.scrollTo(0, 0);
@@ -352,6 +352,8 @@ function renderMenu(main) {
     h('div', { class: 'hero' },
       h('div', { class: 'big' }, 'Telefonundaki araç kutusu'),
       h('p', { class: 'muted small' }, 'Flipper tarzı araçlar, sadece iPhone\'un kendi donanımıyla: kamera, mikrofon, hoparlör, hareket sensörleri, GPS ve Bluetooth.')),
+    h('h2', {}, 'Extrem (yasal boşluklar)'),
+    h('div', { class: 'menu' }, EXTREME.map(menuItem)),
     h('h2', {}, 'Pro hileler'),
     h('div', { class: 'menu' }, PRO.map(menuItem)),
     h('h2', {}, 'Hayat hackleri'),
@@ -2728,6 +2730,224 @@ function mountBorclanma(main) {
   [days, daily, kur, start].forEach(i => i.addEventListener('input', calc));
   main.append(startL, h('div', { class: 'lbl' }, 'Cinsiyet', segCtl([['m', 'Erkek'], ['f', 'Kadın']], 'm', v => { sex = v; calc(); })), daysL, dailyL, kurL, kurBtn, res);
   calc();
+}
+
+// ---------- Extrem (yasal) ----------
+const EXTREME = [
+  { id: 'kira-geri', icon: 'house', name: 'Fazla kirayı geri al (Mietpreisbremse)', desc: 'Kira yasal sınırın üstündeyse fazlasını geri al, 30 aya kadar geriye', mount: mountRentBrake },
+  { id: 'banka-geri', icon: 'bank', name: 'Banka ücretlerini geri al', desc: 'İzinsiz artırılan hesap ücretleri: 2023\'tenkiler 31.12.2026\'da yanar', mount: mountBankFees },
+  { id: 'veri-tazminat', icon: 'shield', name: 'Veri sızıntısı tazminatı', desc: 'Şirket verini sızdırdıysa DSGVO ile para iste', mount: mountDataDamages },
+  { id: 'sigorta-geri', icon: 'coins', name: 'Eski hayat sigortası: parayı geri al', desc: '1994–2007 sözleşmeleri: primler + faiz geri (süresiz itiraz hakkı)', mount: mountLifeIns },
+  { id: 'sinif-hilesi', icon: 'euro', name: 'Vergi sınıfı hilesi (Elterngeld)', desc: 'Bebekten önce sınıf değiştir: ebeveyn parası aylarca yüksek', mount: mountTaxClass },
+  { id: 'bonus', icon: 'chart', name: 'Bonus avcılığı', desc: 'Hesap açma, geçiş ve tavsiye primleri: yılda yüzlerce €', mount: mountBonus },
+  { id: 'ek-gelir', icon: 'hand', name: 'Vergisiz ve sıra dışı ek gelir', desc: 'Vergisiz 3.300 €, plazma, ücretli araştırmalar, figüranlık', mount: mountSideIncome },
+];
+const monthsBetween = (a, b) => Math.max(0, (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth());
+const meFields = me => {
+  const [n, nl] = field('me-name-' + Math.random().toString(36).slice(2, 6), 'Adın soyadın', { value: me.name || '', autocapitalize: 'words' });
+  const [a, al] = field('me-adr-' + Math.random().toString(36).slice(2, 6), 'Adresin', { value: me.adr || '' });
+  return { n, a, els: [nl, al] };
+};
+const letterHead = (name, adr, to, subj) => `${name || '[Name]'}\n${adr || '[Adresse]'}\n\n${to}\n\n${deDate()}\n\nBetreff: ${subj}\n\nSehr geehrte Damen und Herren,\n\n`;
+const letterEnd = name => `\n\nMit freundlichen Grüßen\n\n${name || '[Name]'}`;
+
+function mountRentBrake(main) {
+  const F = {};
+  const mk = (id, label, attrs = {}) => { const [i, l] = field('rb-' + id, label, { inputmode: 'decimal', ...attrs }); F[id] = i; i.addEventListener('input', calc); return l; };
+  const C = {};
+  const ck = (id, label, on) => { const c = h('input', { type: 'checkbox', id: 'rb-' + id, checked: !!on }); C[id] = c; c.addEventListener('change', calc); return h('label', { class: 'chk', for: 'rb-' + id }, c, label); };
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const me = meFields({});
+  const lo = letterOut();
+  const letterBox = h('details', { class: 'card' }, h('summary', {}, h('b', {}, 'Ev sahibine itiraz mektubu (qualifizierte Rüge)')), ...me.els, lo);
+  [me.n, me.a].forEach(i => i.addEventListener('input', calc));
+  function calc() {
+    const v = k => parseNum(F[k].value);
+    const rent = v('rent'), qm = v('qm'), ms = v('ms');
+    const start = F.start.value ? new Date(F.start.value) : null;
+    if (!(rent > 0 && qm > 0 && ms > 0)) { letterBox.hidden = true; return res.replaceChildren(h('p', { class: 'small muted' }, 'Kira, m² ve Mietspiegel değerini gir.')); }
+    const finds = [];
+    if (!C.tight.checked) finds.push(['bad', 'Mietpreisbremse sadece belirlenmiş şehir/bölgelerde geçerli (Berlin, Hamburg, München, Köln, Düsseldorf, Frankfurt, Stuttgart ve 400+ belediye). Şehrini "Mietpreisbremse + şehir adı" ile kontrol et.']);
+    if (C.neubau.checked) finds.push(['bad', 'Ekim 2014\'ten sonra ilk kez kiraya verilen yeni binalarda sınır yok.']);
+    if (C.modern.checked) finds.push(['warn', 'Kapsamlı modernizasyondan sonraki ilk kiralamada sınır yok. Ama ev sahibi bunu kanıtlamak zorunda; çoğu zaman abartılır.']);
+    let allowed = ms * qm * 1.1;
+    if (C.vormiete.checked && v('vormiete') > allowed) { allowed = v('vormiete'); finds.push(['info', 'Önceki kiracının kirası daha yüksekse o tutar alınabilir. Ev sahibi bunu sözleşmeden önce kendiliğinden söylemeliydi; söylemediyse bu istisnayı ancak sonradan bildirdikten 2 yıl sonra kullanabilir.']); }
+    const excess = Math.max(0, rent - allowed);
+    const blocked = !C.tight.checked || C.neubau.checked;
+    let retro = 0;
+    if (start && excess > 0 && !blocked) {
+      const m = monthsBetween(start, new Date());
+      if (start >= new Date('2020-04-01') && m <= 30) { retro = excess * m; finds.push(['ok', 'Sözleşme 1.4.2020 sonrası ve 30 ay dolmamış: başlangıçtan bu yana ödediğin fazlanın TAMAMI geri istenebilir (' + m + ' ay). Acele et: 30. aydan sonra sadece itiraz tarihinden sonrası geri gelir.']); }
+      else finds.push(['info', 'Geriye dönük süre geçmiş: itiraz mektubunu gönderdiğin aydan sonraki fazlalar geri alınır ve kira kalıcı olarak düşer. Her ay beklemek para kaybı.']);
+    }
+    if (excess > 0 && !blocked) finds.push(['ok', 'Kira kalıcı olarak ' + nf(allowed) + ' €\'ya düşer; sözleşmenin geri kalanında her ay ' + nf(excess) + ' € daha az ödersin.'], ['info', 'Kiracı derneği veya conny.de gibi servisler bunu yapar ama genelde birkaç aylık tasarrufu komisyon alır. Mektubu kendin gönderirsen hepsi senin.'], ['warn', 'Ev sahibi seni bu yüzden çıkaramaz. Mietspiegel değerini şehrinin resmi Mietspiegel\'inden doğru seç: bina yaşı, büyüklük, konum, donanım puanları etkiler.']);
+    res.replaceChildren(
+      h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Yasal en yüksek soğuk kira'), h('div', { class: 'xl' }, nf(allowed) + ' €'),
+        h('div', {}, excess > 0 && !blocked ? 'Fazla: ' + nf(excess) + ' €/ay · yılda ' + nf(excess * 12, 0) + ' €' : 'Fazla ödeme görünmüyor'),
+        retro ? h('div', {}, 'Geriye dönük geri alınabilir: ≈ ' + nf(retro, 0) + ' €') : ''),
+      findList(finds));
+    letterBox.hidden = !(excess > 0 && !blocked);
+    if (!letterBox.hidden) {
+      const subj = 'Rüge nach § 556g Abs. 2 BGB (Mietpreisbremse) – Mietverhältnis ' + (me.a.value || '[Wohnung]');
+      lo.set(letterHead(me.n.value, me.a.value, '[Vermieter, Adresse]', subj) +
+        `hiermit rüge ich einen Verstoß gegen die Vorschriften über die Miethöhe bei Mietbeginn (§§ 556d ff. BGB).\n\nDie vereinbarte Nettokaltmiete beträgt ${nf(rent)} EUR für ${nf(qm, 1)} m². Die ortsübliche Vergleichsmiete laut Mietspiegel beträgt ${nf(ms)} EUR/m², zulässig sind damit höchstens ${nf(ms * qm * 1.1)} EUR (Vergleichsmiete + 10 %). Die Miete übersteigt die zulässige Miete um ${nf(excess)} EUR monatlich.\n\nIch fordere Sie auf,\n1. mir gemäß § 556g Abs. 3 BGB Auskunft über alle Tatsachen zu erteilen, die für die Zulässigkeit der vereinbarten Miete maßgeblich sind (insbesondere Vormiete, Modernisierungen),\n2. die Miete ab sofort auf den zulässigen Betrag herabzusetzen und\n3. die zu viel gezahlte Miete${retro ? ' seit Mietbeginn (§ 556g Abs. 2 BGB n. F.)' : ''} bis zum [Datum, 14 Tage] zu erstatten.\n\nAb dem nächsten Monat zahle ich die Miete nur noch unter Vorbehalt der Rückforderung.` + letterEnd(me.n.value),
+        subj);
+    }
+  }
+  main.append(mk('rent', 'Soğuk kira (Nettokaltmiete) €/ay'), mk('qm', 'Daire m²'), mk('ms', 'Mietspiegel\'e göre emsal kira €/m²'), mk('start', 'Kira sözleşmesi başlangıcı', { type: 'date', inputmode: null }),
+    ck('tight', 'Şehrimde Mietpreisbremse var', true), ck('neubau', 'Bina Ekim 2014\'ten sonra ilk kez kiraya verildi'), ck('modern', 'Taşınmadan önce kapsamlı modernize edildi'), ck('vormiete', 'Önceki kiracı daha fazla ödüyordu'), mk('vormiete', 'Önceki kiracının kirası € (biliyorsan)'),
+    res, letterBox);
+  calc();
+}
+
+function mountBankFees(main) {
+  const [fee, feeL] = field('bf-fee', 'Şu anki aylık hesap ücreti €', { inputmode: 'decimal', value: '6,90' });
+  const [old, oldL] = field('bf-old', 'Artıştan önceki aylık ücret € (ücretsizdi ise 0)', { inputmode: 'decimal', value: '0' });
+  const [since, sinceL] = field('bf-since', 'Yeni ücret ne zamandan beri?', { type: 'date', value: '2019-01-01' });
+  const [bank, bankL] = field('bf-bank', 'Banka adı ve adresi');
+  const consent = h('input', { type: 'checkbox', id: 'bf-consent' });
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const me = meFields({}); const lo = letterOut();
+  const box = h('details', { class: 'card' }, h('summary', {}, h('b', {}, 'Bankaya talep mektubu')), ...me.els, lo);
+  function calc() {
+    const diff = Math.max(0, (parseNum(fee.value) || 0) - (parseNum(old.value) || 0));
+    const s = since.value ? new Date(since.value) : new Date('2019-01-01');
+    const from = s > new Date('2023-01-01') ? s : new Date('2023-01-01');
+    const months = monthsBetween(from, new Date());
+    const sum = consent.checked ? 0 : diff * months;
+    res.replaceChildren(
+      h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Geri isteyebileceğin'), h('div', { class: 'xl' }, '≈ ' + nf(sum, 0) + ' €'), h('div', { class: 'small' }, months + ' ay × ' + nf(diff) + ' €')),
+      findList([
+        consent.checked ? ['bad', 'Artışa açıkça onay verdiysen (tıklayarak, imzayla) geri isteyemezsin. Sadece "itiraz etmezseniz kabul sayılır" türü sessiz onay geçersizdir.'] : ['ok', 'BGH 27.04.2021 (XI ZR 26/20): bankaların "itiraz etmezsen kabul etmiş sayılırsın" yöntemiyle ücret koyması/artırması geçersiz. Aktif onay vermediysen paranı geri isteyebilirsin.'],
+        ['warn', 'Zaman aşımı 3 yıl, yıl sonundan itibaren: 2023\'te ödenen ücretler 31 Aralık 2026\'da YANAR. Talebi bu yıl gönder.'],
+        ['info', 'Banka reddederse: ücretsiz banka hakemi (Ombudsmann der privaten Banken / Sparkassen-Schlichtungsstelle). Avukat gerekmez.'],
+        ['info', 'Banka bundan sonra senden aktif onay isteyecek; onaylamazsan hesabı feshedebilir. Önce ücretsiz bir hesap aç, sonra talep et.'],
+      ]));
+    box.hidden = !sum;
+    const subj = 'Rückforderung unwirksam erhobener Kontoführungsentgelte';
+    lo.set(letterHead(me.n.value, me.a.value, bank.value || '[Bank, Adresse]', subj) +
+      `Sie haben seit ${deDate(s)} Kontoführungsentgelte in Höhe von ${nf(parseNum(fee.value) || 0)} EUR monatlich erhoben${(parseNum(old.value) || 0) ? ' (zuvor ' + nf(parseNum(old.value)) + ' EUR)' : ''}. Einer Einführung bzw. Erhöhung dieser Entgelte habe ich zu keinem Zeitpunkt ausdrücklich zugestimmt. Nach dem Urteil des BGH vom 27.04.2021 (XI ZR 26/20) ist die Zustimmungsfiktion in Ihren AGB unwirksam; die Entgelte wurden ohne Rechtsgrund erhoben.\n\nIch fordere Sie auf, mir die seit dem 01.01.2023 zu Unrecht erhobenen Entgelte in Höhe von ${nf(sum)} EUR zuzüglich Zinsen bis zum [Datum, 14 Tage] auf mein Konto zu erstatten. Hilfsweise bitte ich um eine Aufstellung aller seitdem erhobenen Entgelte.\n\nSollte keine Erstattung erfolgen, werde ich die zuständige Schlichtungsstelle anrufen.` + letterEnd(me.n.value), subj);
+  }
+  [fee, old, since, bank, me.n, me.a].forEach(i => i.addEventListener('input', calc)); consent.addEventListener('change', calc);
+  main.append(feeL, oldL, sinceL, h('label', { class: 'chk', for: 'bf-consent' }, consent, 'Artışı açıkça onayladım (tıkladım/imzaladım)'), res, bankL, box);
+  calc();
+}
+
+function mountDataDamages(main) {
+  const [co, coL] = field('dd-co', 'Firma adı ve adresi');
+  const [what, whatL] = field('dd-what', 'Ne sızdı? (ör. telefon numaram, e-postam, adresim)', { value: 'Telefonnummer, Name, E-Mail-Adresse' });
+  const [when, whenL] = field('dd-when', 'Sızıntıyı ne zaman öğrendin?', { type: 'date' });
+  const [amt, amtL] = field('dd-amt', 'İstenen tazminat €', { inputmode: 'decimal', value: '1000' });
+  const me = meFields({}); const lo = letterOut();
+  const upd = () => {
+    const subj = 'Schadensersatz nach Art. 82 DSGVO und Auskunft nach Art. 15 DSGVO';
+    lo.set(letterHead(me.n.value, me.a.value, co.value || '[Unternehmen, Adresse]', subj) +
+      `ich habe ${when.value ? 'am ' + deDate(new Date(when.value)) : 'kürzlich'} erfahren, dass durch einen Datenschutzvorfall in Ihrem Verantwortungsbereich meine personenbezogenen Daten (${what.value || '[Daten]'}) unbefugten Dritten zugänglich geworden sind.\n\nNach dem Urteil des BGH vom 18.11.2024 (VI ZR 10/24) stellt bereits der Verlust der Kontrolle über personenbezogene Daten einen immateriellen Schaden im Sinne von Art. 82 DSGVO dar. Seit dem Vorfall erhalte ich verstärkt Spam- und Betrugsversuche und bin in Sorge über einen Missbrauch meiner Daten.\n\nIch fordere Sie auf,\n1. mir bis zum [Datum, 14 Tage] einen Schadensersatz in Höhe von ${nf(parseNum(amt.value) || 0, 0)} EUR zu zahlen,\n2. mir gemäß Art. 15 DSGVO vollständig Auskunft zu erteilen, welche meiner Daten vom Vorfall betroffen waren, und\n3. zu erklären, welche Maßnahmen Sie getroffen haben, um weitere Abflüsse zu verhindern.\n\nNach fruchtlosem Fristablauf behalte ich mir gerichtliche Schritte sowie eine Beschwerde bei der zuständigen Datenschutzaufsichtsbehörde vor.` + letterEnd(me.n.value), subj);
+  };
+  [co, what, when, amt, me.n, me.a].forEach(i => i.addEventListener('input', upd)); upd();
+  main.append(
+    findList([
+      ['ok', 'BGH 18.11.2024: verinin kontrolünü kaybetmek tek başına zarar sayılır. Facebook sızıntısı için kişi başı ~100 € makul görüldü; daha ciddi sızıntılarda (sağlık, banka, kimlik) mahkemeler birkaç yüz ile birkaç bin € verdi.'],
+      ['info', 'Nereden bileceksin: firmanın "Datenschutzvorfall" e-postası, haberler, ya da Güvenlik → Terminal\'de "pwned" ile şifre kontrolü. haveibeenpwned.com\'da e-postanı arat: hangi sitelerden sızdığını listeler.'],
+      ['info', 'Zaman aşımı: sızıntıyı öğrendiğin yılın sonundan itibaren 3 yıl.'],
+      ['warn', 'Yüksek tutar isteyebilirsin ama firma genelde reddeder; gerçek para çoğu zaman dava veya toplu dava (Sammelklage / Abhilfeklage, Verbraucherzentrale) ile gelir. Hukuk koruma sigortan (Rechtsschutz) varsa avukat masrafsız.'],
+    ]),
+    coL, whatL, whenL, amtL, ...me.els, lo);
+}
+
+function mountLifeIns(main) {
+  const [co, coL] = field('li-co', 'Sigorta şirketi ve adresi');
+  const [no, noL] = field('li-no', 'Poliçe numarası');
+  const [start, startL] = field('li-start', 'Sözleşme başlangıcı', { type: 'date', value: '2003-01-01' });
+  const [paid, paidL] = field('li-paid', 'Toplam ödediğin prim €', { inputmode: 'decimal' });
+  const [got, gotL] = field('li-got', 'İptalde geri aldığın (Rückkaufswert) € (iptal etmediysen boş)', { inputmode: 'decimal' });
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const me = meFields({}); const lo = letterOut();
+  function calc() {
+    const s = start.value ? new Date(start.value) : null;
+    const inWin = s && s >= new Date('1994-07-29') && s <= new Date('2007-12-31');
+    const p = parseNum(paid.value) || 0, g = parseNum(got.value) || 0;
+    const est = p > 0 ? Math.max(0, p * 1.15 - g) : 0;
+    res.replaceChildren(
+      h('div', { class: 'verdict ' + (inWin ? 'v-ok' : 'v-warn') }, h('i', { class: 'dot' }), h('div', {}, h('b', {}, inWin ? 'Süresiz itiraz hakkın olabilir' : 'Tarih aralığı dışında'), h('div', { class: 'small muted' }, inWin ? '1994–2007 arası sözleşme' : 'Hak çoğunlukla 29.07.1994 – 31.12.2007 sözleşmelerinde'))),
+      p > 0 && inWin ? h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Kaba tahmini ek alacak'), h('div', { class: 'xl' }, '≈ ' + nf(est, 0) + ' €')) : '',
+      findList([
+        ['info', 'Bu yıllarda "Policenmodell" ile yapılan hayat ve emeklilik sigortalarında itiraz hakkı açıklaması çoğu zaman hatalı. AB Adalet Divanı ve BGH: o zaman itiraz süresi hiç başlamamıştır, yani bugün bile itiraz edebilirsin.'],
+        ['ok', 'Kazanç: ödediğin tüm primler + şirketin bu paralarla elde ettiği faiz/kâr (Nutzungen), eksi sigorta koruma maliyeti. Erken iptal ettiysen kesilen "Rückkaufswert" farkı geri gelir.'],
+        ['info', 'Sözleşmeyi zaten iptal ettiysen bile hak devam edebilir (BGH). Riester ve Rürup için de durum incelenebilir.'],
+        ['warn', 'Tahmin kabadır. Sözleşme belgelerini (Police, Antrag, Verbraucherinformation) bir avukata ya da Verbraucherzentrale\'ye kontrol ettir; belgede itiraz açıklaması doğruysa hak yoktur.'],
+      ]));
+    const subj = 'Widerspruch gemäß § 5a VVG a. F. – Versicherungsnummer ' + (no.value || '[Nummer]');
+    lo.set(letterHead(me.n.value, me.a.value, co.value || '[Versicherung, Adresse]', subj) +
+      `hiermit widerspreche ich dem Zustandekommen des oben genannten Versicherungsvertrags${s ? ' vom ' + deDate(s) : ''} gemäß § 5a VVG a. F.\n\nDie mir erteilte Widerspruchsbelehrung war fehlerhaft bzw. unvollständig; die Widerspruchsfrist wurde daher nicht in Lauf gesetzt (EuGH, Urteil vom 19.12.2013, C-209/12; BGH, Urteil vom 07.05.2014, IV ZR 76/11).\n\nIch fordere Sie auf, mir sämtliche gezahlten Beiträge zuzüglich der daraus gezogenen Nutzungen, abzüglich eines etwaigen bereits ausgezahlten Rückkaufswerts, bis zum [Datum, 4 Wochen] zu erstatten und mir eine nachvollziehbare Abrechnung zu übersenden.` + letterEnd(me.n.value), subj);
+  }
+  [co, no, start, paid, got, me.n, me.a].forEach(i => i.addEventListener('input', calc));
+  main.append(startL, paidL, gotL, res, coL, noL, ...me.els, lo);
+  calc();
+}
+
+function mountTaxClass(main) {
+  const [g1, g1L] = field('tc-g1', 'Elterngeld alacak ebeveynin aylık brüt maaşı €', { inputmode: 'decimal', value: '3000' });
+  const [g2, g2L] = field('tc-g2', 'Eşin aylık brüt maaşı €', { inputmode: 'decimal', value: '3500' });
+  const res = h('div', { style: 'display:grid;gap:10px' });
+  const zve = b => Math.max(0, b * 12 * 0.8 - 1230 - 36);
+  const ltIV = b => incomeTax2026(zve(b)) / 12;
+  const ltIII = b => 2 * incomeTax2026(zve(b) / 2) / 12;
+  const egNet = (b, lt) => Math.max(0, b - lt - b * 0.21);
+  const eg = n => { if (n <= 0) return 300; const rate = n < 1000 ? Math.min(1, 0.67 + (1000 - n) / 2 * 0.001) : n > 1200 ? Math.max(0.65, 0.67 - (n - 1200) / 2 * 0.001) : 0.67; return Math.min(1800, Math.max(300, n * rate)); };
+  function calc() {
+    const b1 = parseNum(g1.value) || 0, b2 = parseNum(g2.value) || 0;
+    const e4 = eg(egNet(b1, ltIV(b1))), e3 = eg(egNet(b1, ltIII(b1)));
+    const gain = Math.max(0, e3 - e4);
+    res.replaceChildren(
+      h('div', { class: 'lcd' }, h('div', { class: 'small' }, 'Elterngeld farkı (sınıf IV → III)'), h('div', { class: 'xl' }, '+' + nf(gain, 0) + ' €/ay'), h('div', {}, '12 ayda ≈ ' + nf(gain * 12, 0) + ' € · (IV: ' + nf(e4, 0) + ' € → III: ' + nf(e3, 0) + ' €)')),
+      findList([
+        ['ok', 'Evliysen: Elterngeld alacak ebeveyn III\'e, diğeri V\'e geçer. Elterngeld doğumdan önceki 12 ayın NET maaşına göre hesaplandığı için aylarca yüksek ödenir.'],
+        ['warn', 'ZAMANLAMA KRİTİK: yeni sınıf, hesaplama döneminin (doğumdan önceki 12 ay; annede Mutterschutz başlangıcından önceki 12 ay) en az 7 ayında geçerli olmalı. Pratikte: hamilelik öğrenilir öğrenilmez, hatta planlarken ELSTER\'den değiştir.'],
+        ['info', 'Eşin V\'te daha az net alır ama bu kayıp değil: yıl sonu beyannamesinde toplam vergi aynı hesaplanır. Elterngeld kazancı ise kalıcıdır.'],
+        ['info', 'Benzer etki: Mutterschaftsgeld işveren ek ödemesi ve (sınırlı) işsizlik parası. İşsizlik parası için yıl içi değişim ancak gelir oranına uygunsa kabul edilir.'],
+        b2 > 0 && b1 > b2 * 1.5 ? ['info', 'Not: Elterngeld alacak kişi zaten daha çok kazanıyor; III büyük ihtimalle zaten onda olmalı.'] : null,
+        ['warn', 'Kaba tahmindir (2026 tarifesi, kilise vergisi yok). Kesin hesap: familienportal.de Elterngeldrechner.'],
+      ].filter(Boolean)));
+  }
+  [g1, g2].forEach(i => i.addEventListener('input', calc));
+  main.append(g1L, g2L, res);
+  calc();
+}
+
+const BONUSES = [
+  ['Banka hesabı açma primi', '50–150 € / hesap', 'Bankalar yeni Girokonto için prim verir; şart genelde maaş girişi veya birkaç kart ödemesi. Şartı yerine getir, primi al, sonra ücretsiz kullan ya da kapat.'],
+  ['Broker / yatırım hesabı primi', '25–100 €', 'Depo açma ve ilk tasarruf planı için prim. Sadece ücretsiz brokerlarda yap.'],
+  ['Elektrik ve gaz yeni müşteri bonusu', '50–300 € / yıl', 'Her yıl tedarikçi değiştir: anında ve yıl sonu bonusları. 1 yıllık sözleşme seç, takvime iptal tarihini yaz.'],
+  ['Numara taşıma bonusu (mobil)', '25–100 €', 'Numaranı başka operatöre taşıyınca birçok SIM-only tarife bonus verir; aynı tarife daha ucuz.'],
+  ['Tavsiye (Werben) primleri', '25–100 € / kişi', 'Bankalar, elektrik, mobil, broker: arkadaşını getirene ve çoğu zaman gelene de prim. Aile içinde karşılıklı yapılabilir.'],
+  ['Cashback katlama', 'harcamanın %2–10\'u', 'Online alışverişte önce cashback portalı (Shoop, TopCashback), sonra Payback/DeutschlandCard kuponu, sonra cashback\'li kart: üç indirim üst üste.'],
+  ['Krankenkasse geçiş ve bonus', '50–300 € / yıl', 'Ek primi düşük kasaya geç (hizmetler %95 aynı) + bonus programı. Zam olduğunda özel fesih hakkı.'],
+  ['Mağaza kayıt kuponları', '%10–20 ilk alışveriş', 'Bülten aboneliğiyle gelen kuponları büyük alışverişten önce al (ayrı e-posta adresi kullan).'],
+];
+function mountBonus(main) {
+  const sel = new Set();
+  const res = h('div', { class: 'lcd' });
+  const upd = () => { const lo = [...sel].reduce((s, i) => s + parseInt(BONUSES[i][1]), 0); res.replaceChildren(h('div', { class: 'small' }, 'Seçtiklerinle yılda en az'), h('div', { class: 'xl' }, '≈ ' + lo + ' €+')); };
+  main.append(res, ...BONUSES.map(([t, a, d], i) => { const c = h('input', { type: 'checkbox', id: 'bo-' + i }); c.onchange = () => { c.checked ? sel.add(i) : sel.delete(i); upd(); };
+    return h('div', { class: 'card' }, h('label', { class: 'chk', for: 'bo-' + i }, c, h('b', {}, t + ' · ' + a)), h('p', { class: 'small muted' }, d)); }),
+    h('div', { class: 'note' }, h('span', {}, 'Kurallar: şartları oku (asgari süre, maaş girişi). Sadece ücretsiz hesap aç. Kredi kartı başvuruları Schufa\'ya yazılır; az yap.'), h('span', {}, 'Bu uygulama hiçbir şey kaydetmez: hangi primi aldığını ve iptal tarihlerini telefonundaki Notlar/Hatırlatıcılar\'a yaz.')));
+  upd();
+}
+
+function mountSideIncome(main) {
+  const items = [
+    ['Übungsleiterpauschale: 3.300 €/yıl VERGİSİZ', 'Spor antrenörlüğü, VHS/kurs öğretmenliği, ders verme, bakım/yardım işi (kâr amacı gütmeyen dernek, okul, belediye için). 2026\'dan itibaren yılda 3.300 €\'ya kadar vergi ve sigorta primi yok. Minijob ile birleştirilebilir: ayda ~875 € tamamen kesintisiz.', 'ok'],
+    ['Ehrenamtspauschale: 960 €/yıl VERGİSİZ', 'Derneklerde gönüllü işler (sayman, hakem, organizasyon). Übungsleiterpauschale ile aynı işte değil ama yanında kullanılabilir.', 'ok'],
+    ['Minijob: ayda 603 €', 'Vergi ve sigorta primi kesilmez (emeklilik primini istersen bıraktırabilirsin). Ana işin yanında bir tane serbest.', 'ok'],
+    ['Plazma bağışı: yılda ~1.000–2.000 €', 'Sağlıklıysan yılda 60 kez bağış yapılabilir; her seferde 20–40 € gider tazminatı. İlk bağışlarda ekstra bonus veren merkezler var. Önce doktor kontrolü yapılır; bol su iç, demir değerini takip ettir.', 'info'],
+    ['Ücretli tıbbi araştırmalar: 500–6.000 €', 'Sağlıklı gönüllülerle yapılan ilaç çalışmaları (Phase I), kalış gün sayısına göre ödeme. Sadece üniversite klinikleri ve bilinen araştırma merkezleri; etik kurul onayı ve sigortası olanlar. Riskleri bilgilendirme formundan oku, istediğin an bırakabilirsin.', 'warn'],
+    ['Üniversite araştırmaları: saat başı 10–20 €', 'Psikoloji, dil, pazar araştırmaları; anket ve laboratuvar deneyleri. Üniversitelerin "Probanden gesucht" sayfaları ve e-posta listeleri. Risksiz.', 'info'],
+    ['Figüranlık (Komparse): günlük 80–150 €', 'Film/dizi/reklam figüranlığı için ajanslara ücretsiz kayıt. Türkçe konuşan figüran sık aranır.', 'info'],
+    ['Kullanılmayan eşyaları sat', 'Kleinanzeigen, Vinted, momox: evdeki elektronik, kıyafet, kitap. Ortalama bir evde yüzlerce € bekliyor. Özel satışlarda yılda 30 satış/2.000 €\'ya kadar platform vergi bildirimi yapmaz.', 'info'],
+  ];
+  main.append(...items.map(([t, d, lv]) => h('div', { class: 'card' }, h('b', { class: lv === 'ok' ? 'pos' : '' }, t), h('p', { class: 'small' }, d))),
+    h('div', { class: 'note' }, 'Bürgergeld veya işsizlik parası alıyorsan ek gelirini bildir: bir kısmı serbesttir (Übungsleiterpauschale\'de daha fazlası), bildirmemek dolandırıcılık sayılır. Tutarlar 2026 için yaklaşık.'));
 }
 
 // ---------- boot ----------
