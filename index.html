@@ -243,8 +243,12 @@ function out(label, text) {
   box.set = v => (t.textContent = v);
   return box;
 }
+// Hiçbir şey kalıcı kaydedilmez: veriler sadece sayfa açıkken bellekte durur.
+const mem = new Map();
+try { localStorage.clear(); sessionStorage.clear(); } catch {}
 function store(key, val) {
-  try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch { return null; }
+  if (val === undefined) return mem.has(key) ? mem.get(key) : null;
+  mem.set(key, val);
 }
 const scripts = {};
 function loadScript(src) {
@@ -1315,8 +1319,8 @@ const LEAGUES = [
   ['soccer_turkey_super_league', 'Süper Lig'], ['soccer_netherlands_eredivisie', 'Eredivisie'], ['soccer_portugal_primeira_liga', 'Primeira Liga'],
   ['soccer_uefa_champs_league', 'Şampiyonlar Ligi'], ['soccer_uefa_europa_league', 'Avrupa Ligi'], ['soccer_uefa_europa_conference_league', 'Konferans Ligi'],
 ];
-const jget = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
-const jset = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const jget = (k, d) => { const v = store(k); return v ? JSON.parse(v) : d; };
+const jset = (k, v) => store(k, JSON.stringify(v));
 const num = (n, d = 2) => Number(n).toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d });
 const eur = n => num(n) + ' €';
 const pct = (n, d = 1) => (n >= 0 ? '+' : '') + num(n * 100, d) + ' %';
@@ -1378,7 +1382,7 @@ function demoEvents() {
 
 function mountValue(main) {
   const st = jget('vb-settings', { leagues: ['soccer_germany_bundesliga', 'soccer_epl', 'soccer_spain_la_liga', 'soccer_italy_serie_a', 'soccer_turkey_super_league'], totals: false, minEv: 2, bankroll: 100, kelly: 25 });
-  let key = (() => { try { return localStorage.getItem('odds-key') || ''; } catch { return ''; } })();
+  let key = store('odds-key') || '';
   const results = h('div', { style: 'display:grid;gap:10px' });
   const status = h('p', { class: 'small muted' });
 
@@ -1386,10 +1390,10 @@ function mountValue(main) {
   const keyIn = h('input', { class: 'input mono', id: 'vb-key', placeholder: 'API anahtarı', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', value: key });
   const keyCard = h('div', { class: 'card' },
     h('b', {}, 'The Odds API anahtarı'),
-    h('p', { class: 'small muted' }, 'the-odds-api.com adresinden ücretsiz hesap açın (ayda 500 sorgu). Gelen anahtarı buraya yapıştırın. Anahtar sadece bu telefonda saklanır, başka yere gönderilmez.'),
+    h('p', { class: 'small muted' }, 'the-odds-api.com adresinden ücretsiz hesap açın (ayda 500 sorgu). Gelen anahtarı buraya yapıştırın. Anahtar hiçbir yere kaydedilmez; sayfa kapanınca silinir, her açılışta yeniden yapıştırmanız gerekir.'),
     keyIn,
     h('div', { class: 'row' },
-      h('button', { class: 'btn primary', onclick: () => { key = keyIn.value.trim(); try { localStorage.setItem('odds-key', key); } catch {} toast(key ? 'Anahtar kaydedildi' : 'Anahtar silindi'); keyCard.hidden = !!key; } }, 'Kaydet'),
+      h('button', { class: 'btn primary', onclick: () => { key = keyIn.value.trim(); store('odds-key', key); toast(key ? 'Anahtar bu oturum için alındı' : 'Anahtar silindi'); keyCard.hidden = !!key; } }, 'Kaydet'),
       h('a', { class: 'btn', href: 'https://the-odds-api.com/#get-access', target: '_blank', rel: 'noopener' }, 'Anahtar al')));
   keyCard.hidden = !!key;
 
@@ -1509,7 +1513,7 @@ function mountLedger(main) {
 
   const backup = h('textarea', { class: 'input', id: 'bt-backup', placeholder: 'Yedeği buraya yapıştırın' });
   const tools = h('details', { class: 'card' }, h('summary', {}, 'Yedekleme'),
-    h('p', { class: 'small muted' }, 'Defter sadece bu telefondaki tarayıcıda saklanır. Safari verilerini silerseniz kaybolur; ara sıra yedeği kopyalayıp Notlar\'a yapıştırın.'),
+    h('p', { class: 'small muted' }, 'Uygulama hiçbir şey kaydetmez: sayfa kapanınca defter silinir. Saklamak isterseniz yedeği kopyalayıp kendiniz bir yere yapıştırın.'),
     h('button', { class: 'btn', onclick: () => copyText(JSON.stringify(bets)) }, 'Yedeği kopyala'),
     h('label', { class: 'lbl', for: 'bt-backup' }, 'Yedekten geri yükle', backup),
     h('button', { class: 'btn', onclick: () => { try { const d = JSON.parse(backup.value); if (!Array.isArray(d)) throw 0; bets = d; backup.value = ''; saveAll(); toast(d.length + ' bahis yüklendi'); } catch { toast('Yedek okunamadı'); } } }, 'Geri yükle'));
