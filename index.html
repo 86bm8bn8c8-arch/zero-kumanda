@@ -8,9 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Cep Zero">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<meta name="referrer" content="no-referrer">
 <style>
 /* Layout: one dark "device" screen. Flipper-style menu list -> full-screen tool views.
    Single deliberate dark theme; orange LCD accent is the only loud color. */
@@ -25,9 +23,9 @@
   --on-accent: #140c03;
   --ok: #5cc46c;
   --bad: #ff6b5c;
-  --font-pixel: "Silkscreen", "Courier New", monospace;
-  --font-body: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --font-pixel: ui-monospace, Menlo, "Courier New", monospace;
+  --font-body: -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -219,6 +217,7 @@ video.cam { width: 100%; max-width: 100%; aspect-ratio: 3 / 4; object-fit: cover
 const $ = s => document.querySelector(s);
 function h(tag, attrs = {}, ...kids) {
   const el = document.createElement(tag);
+  if (tag === 'input' || tag === 'textarea') el.setAttribute('autocomplete', 'off');
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v == null || v === false) continue;
     if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
@@ -337,6 +336,7 @@ function renderMenu(main) {
     h('div', { class: 'menu' }, TOOLS.map(t => h('button', { class: 'mi', onclick: () => (location.hash = t.id) }, icon(t.icon), h('div', {}, h('b', {}, t.name), h('span', {}, t.desc)), h('span', { class: 'arr' }, '›')))),
     h('h2', {}, 'Bu telefonda yapılamayanlar'),
     h('div', { class: 'menu' }, MISSING.map(([n, why]) => h('div', { class: 'mi off' }, icon('radio'), h('div', {}, h('b', {}, n), h('span', {}, why)), h('span', { class: 'tag' }, 'donanım')))),
+    h('div', { class: 'note' }, 'Gizlilik: Üyelik yok, kullanıcı kaydı yok, çerez yok, istatistik/takip kodu yok. Uygulama telefonda hiçbir şey saklamaz; sayfa kapanınca her şey silinir. Bir araç internetten bilgi sorarsa (ör. DNS, sızıntı kontrolü) sadece o sorgu gönderilir.'),
     h('p', { class: 'small muted' }, 'İpucu: Safari\'de Paylaş → Ana Ekrana Ekle ile uygulama gibi açabilirsiniz.'));
 }
 
@@ -671,7 +671,7 @@ function mountLevel(main) {
   const tilt = h('div', { class: 'lcd', style: 'text-align:center' }, h('div', { class: 'xl', id: 'lv-a' }, '0,0°'), h('div', { id: 'lv-xy' }, 'x 0,0° · y 0,0°'));
   const needle = '<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="96" fill="#1a1714" stroke="#332d26" stroke-width="2"/>' +
     Array.from({ length: 72 }, (_, i) => { const a = i * 5 * Math.PI / 180, r1 = i % 18 === 0 ? 78 : (i % 6 === 0 ? 84 : 89); return `<line x1="${100 + Math.sin(a) * r1}" y1="${100 - Math.cos(a) * r1}" x2="${100 + Math.sin(a) * 94}" y2="${100 - Math.cos(a) * 94}" stroke="#a1978b" stroke-width="${i % 18 === 0 ? 2 : 1}"/>`; }).join('') +
-    [['K', 0], ['D', 90], ['G', 180], ['B', 270]].map(([t, d]) => { const a = d * Math.PI / 180; return `<text x="${100 + Math.sin(a) * 64}" y="${100 - Math.cos(a) * 64 + 6}" text-anchor="middle" font-family="Silkscreen, monospace" font-size="16" fill="${t === 'K' ? '#ff8200' : '#f3eee7'}">${t}</text>`; }).join('') + '</svg>';
+    [['K', 0], ['D', 90], ['G', 180], ['B', 270]].map(([t, d]) => { const a = d * Math.PI / 180; return `<text x="${100 + Math.sin(a) * 64}" y="${100 - Math.cos(a) * 64 + 6}" text-anchor="middle" font-family="Menlo, monospace" font-size="16" fill="${t === 'K' ? '#ff8200' : '#f3eee7'}">${t}</text>`; }).join('') + '</svg>';
   const dial = h('div', { html: needle, style: 'width:100%;height:100%;transition:transform .15s linear' });
   const compass = h('div', { class: 'compass' }, dial, h('div', { style: 'position:absolute;left:50%;top:0;transform:translateX(-50%);width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:18px solid #ff8200' }));
   const heading = h('div', { class: 'lcd', style: 'text-align:center' }, h('div', { class: 'xl', id: 'cp-h' }, '—°'), h('div', { id: 'cp-d' }, 'yön: —'));
@@ -840,7 +840,7 @@ function mountSnake(main) {
   function draw(text) {
     g.fillStyle = '#ff8200'; g.fillRect(0, 0, cv.width, cv.height); g.fillStyle = '#000';
     if (snake) { for (const s of snake) g.fillRect(s.x * C, s.y * C, C - 1, C - 1); g.fillRect(food.x * C + 1, food.y * C, 2, C); g.fillRect(food.x * C, food.y * C + 1, C, 2); }
-    if (text || !snake) { g.fillStyle = '#ff8200'; g.fillRect(24, 22, 80, 20); g.fillStyle = '#000'; g.strokeRect(24.5, 22.5, 79, 19); g.font = '8px Silkscreen, monospace'; g.textAlign = 'center'; g.fillText(text || 'BASLAT', 64, 35); }
+    if (text || !snake) { g.fillStyle = '#ff8200'; g.fillRect(24, 22, 80, 20); g.fillStyle = '#000'; g.strokeRect(24.5, 22.5, 79, 19); g.font = 'bold 8px Menlo, monospace'; g.textAlign = 'center'; g.fillText(text || 'BASLAT', 64, 35); }
   }
   let sx, sy;
   cv.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
